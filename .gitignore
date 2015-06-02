@@ -1,0 +1,13 @@
+*.aux
+*.bcf
+*.log
+*.out
+*.xml
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.xdv
+*.pdf
+_minted-*
+.vscode/
