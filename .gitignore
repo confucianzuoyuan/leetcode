@@ -9,5 +9,10 @@
 *.toc
 *.xdv
 *.pdf
+*.lol
+*.pygmented
+*.snippets
+*.listing
+.ipynb_checkpoints/
 _minted-*
 .vscode/

@@ -1,0 +1,3083 @@
+\section{Java重点复习}
+
+\chapter{算法分析}
+
+
+
+
+
+\begin{figure}
+    \centering
+    \scalebox{1}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=none] (0) at (-2, 6) {};
+                \node [style=none] (1) at (2, 6) {};
+                \node [style=none] (2) at (-2, 5) {};
+                \node [style=none] (3) at (2, 5) {};
+                \node [style=none] (4) at (-1, 5.5) {函数};
+                \node [style=none] (5) at (1, 5.5) {名称};
+                \node [style=none] (6) at (-1, 4.5) {$c$};
+                \node [style=none] (7) at (1, 4.5) {常数};
+                \node [style=none] (8) at (-1, 3.5) {$\log{N}$};
+                \node [style=none] (9) at (1, 3.5) {对数};
+                \node [style=none] (10) at (-1, 2.5) {$N$};
+                \node [style=none] (11) at (1, 2.5) {线性};
+                \node [style=none] (12) at (-1, 1.5) {$N\log{N}$};
+                \node [style=none] (13) at (-1, 0.5) {$N^2$};
+                \node [style=none] (14) at (1, 0.5) {平方};
+                \node [style=none] (15) at (-1, -0.5) {$N^3$};
+                \node [style=none] (16) at (1, -0.5) {立方};
+                \node [style=none] (17) at (-1, -1.5) {$2^N$};
+                \node [style=none] (18) at (1, -1.5) {指数};
+                \node [style=none] (19) at (-2, -2) {};
+                \node [style=none] (20) at (2, -2) {};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw (0.center) to (1.center);
+                \draw (1.center) to (3.center);
+                \draw (3.center) to (2.center);
+                \draw (2.center) to (0.center);
+                \draw (2.center) to (19.center);
+                \draw (19.center) to (20.center);
+                \draw (20.center) to (3.center);
+            \end{pgfonlayer}
+        \end{tikzpicture}        
+    }
+    \caption{典型函数的增长率}
+\end{figure}
+
+\section{运行算法的机器模型}
+
+首先对算法程序运行的机器做一些假设. 我们用的不是量子计算机. 而是冯诺依曼体系结构的典型计算机, 拥有如下特征:
+
+\begin{itemize}
+    \item 单核处理器
+    \item 64位
+    \item CPU顺序执行指令, 不会并发执行指令
+    \item 指令集中只有简单的加减乘除, 逻辑运算以及跳转指令. 没有矩阵求逆或者排序这样的指令.
+    \item 内存模型: 我们将内存看作\textbf{字节数组}, 内存是无限的.
+    \item 算术运算和逻辑运算需要 \textbf{1个时间单位}
+    \item 赋值语句和return语句需要 \textbf{1个时间单位}
+    \item 模型计算机做任何一件简单的事情只需要一个\textbf{1个时间单位}
+\end{itemize}
+
+我们这个模型有些缺点. 因为不是所有的运算都恰好花费相同的时间. 特别是我们的模型中, 从磁盘读取一次数据或者写入一次磁盘数据(例如打印\mintinline{text}|"Hello World"|), 都是按照\textbf{1个时间单位}来计时的, 实际上加法要比从磁盘读取一次数据快好几个数量级.
+
+举个例子,
+
+\begin{myjava}
+int main() {
+    int a = 1; // 1个时间单位
+    int b = 2; // 1个时间单位
+    int result = a + b; // 1个时间单位
+    printf("result: %d\n", result); // 我们假设打印语句是1个时间单位, 实际上不是.
+}
+\end{myjava}
+
+这段代码编译成\mintinline{text}|X86_64|汇编代码是:
+
+\begin{myasm}
+    .LC0:
+    .string "result: %d\n"
+main:
+    pushq   %rbp
+    movq    %rsp, %rbp
+    subq    $16, %rsp
+    movl    $1, -4(%rbp)
+    movl    $2, -8(%rbp)
+    movl    -4(%rbp), %edx
+    movl    -8(%rbp), %eax
+    addl    %edx, %eax
+    movl    %eax, -12(%rbp)
+    movl    -12(%rbp), %eax
+    movl    %eax, %esi
+    movl    $.LC0, %edi
+    movl    $0, %eax
+    call    printf
+    movl    $0, %eax
+    leave
+    ret
+\end{myasm}
+
+\begin{figure}
+    \centering
+    \scalebox{1}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=none] (0) at (-6, -10) {};
+                \node [style=none] (1) at (-4, -10) {};
+                \node [style=none] (2) at (-6, -11) {};
+                \node [style=none] (3) at (-4, -11) {};
+                \node [style=none] (4) at (-6, -12) {};
+                \node [style=none] (5) at (-6, -13) {};
+                \node [style=none] (6) at (-6, -14) {};
+                \node [style=none] (7) at (-4, -12) {};
+                \node [style=none] (8) at (-4, -13) {};
+                \node [style=none] (9) at (-4, -14) {};
+                \node [style=none] (10) at (-6, -15) {};
+                \node [style=none] (11) at (-4, -15) {};
+                \node [style=none] (12) at (-6, -16) {};
+                \node [style=none] (13) at (-4, -16) {};
+                \node [style=none] (14) at (-5, -10.5) {byte};
+                \node [style=none] (15) at (-5, -11.5) {byte};
+                \node [style=none] (16) at (-5, -12.5) {byte};
+                \node [style=none] (17) at (-5, -13.5) {byte};
+                \node [style=none] (18) at (-5, -14.5) {byte};
+                \node [style=none] (19) at (-5, -15.5) {...};
+                \node [style=none] (20) at (-8, -10.5) {0x0000000000000000};
+                \node [style=none] (21) at (-8, -11.5) {0x0000000000000001};
+                \node [style=none] (22) at (-8, -12.5) {0x0000000000000002};
+                \node [style=none] (23) at (-8, -13.5) {0x0000000000000003};
+                \node [style=none] (24) at (-8, -14.5) {0x0000000000000004};
+                \node [style=none] (25) at (-8, -15.5) {......};
+                \node [style=none] (26) at (-6, -17) {};
+                \node [style=none] (27) at (-4, -17) {};
+                \node [style=none] (28) at (-5, -16.5) {byte};
+                \node [style=none] (29) at (-8, -16.5) {0xffffffffffffffff};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw (0.center) to (12.center);
+                \draw (0.center) to (1.center);
+                \draw (1.center) to (13.center);
+                \draw (13.center) to (12.center);
+                \draw (10.center) to (11.center);
+                \draw (9.center) to (6.center);
+                \draw (5.center) to (8.center);
+                \draw (7.center) to (4.center);
+                \draw (2.center) to (3.center);
+                \draw (12.center) to (26.center);
+                \draw (26.center) to (27.center);
+                \draw (27.center) to (13.center);
+            \end{pgfonlayer}
+        \end{tikzpicture}        
+    }
+    \caption{64位内存模型}
+\end{figure}
+
+\begin{figure}
+\centering
+\scalebox{.5}{
+\begin{tikzpicture}
+  \draw[->] (1,1) -- (20,1) node[right] {数据量};
+  \draw[->] (1,1) -- (1,32) node[above] {所需时间};
+
+  \draw[color=yellow] plot [domain=2:10,samples=100] (\x,{log2(\x)}) node[right] {$O(\log_2N)$};
+  \draw[color=green]  plot [domain=1:10,samples=100] (\x,{2})        node[right] {$O(1)$};
+  \draw[color=red]    plot [domain=1:10,samples=100] (\x,\x)         node[right] {$O(N)$};
+  \draw[color=blue]   plot [domain=1:5,samples=100]  (\x,{\x^2})     node[right] {$O(N^2)$};
+  \draw[color=pink]   plot [domain=1:5,samples=100]  (\x,{2^(\x)})   node[right] {$O(2^N)$};
+\end{tikzpicture}}
+\caption{不同数据量时间复杂度的比较}
+\end{figure}
+
+\textbf{时间复杂度}是程序执行时间的大致估算.
+
+\textbf{空间复杂度}是程序执行时占用的内存空间大小的大致估算.
+
+所以时间复杂度和空间复杂度并不是精确度量, 而是估算. 下面我们举一些例子来说明一下如何计算程序的复杂度.
+
+\section{例子 1}
+
+\begin{myjava}
+class GFG {
+    public static void main(String[] args) {
+        System.out.print("Hello World");
+    }
+}
+\end{myjava}
+
+输出
+
+\begin{minted}{text}
+Hello World
+\end{minted}
+
+\begin{itemize}
+    \item \textbf{时间复杂度}: \mintinline{text}|"Hello World"| 只打印了1次, 所以时间复杂度是常量, 也就是 $O(1)$.
+    \item \textbf{空间复杂度}: 只需要常量级别的内存空间, 所以空间复杂度是 $O(1)$.
+\end{itemize}
+
+\section{例子 2}
+
+\begin{myjava}
+class GFG {
+    public static void main(String[] args) {
+        int i, n = 8;
+        for (i = 1; i <= n; i++) {
+            System.out.printf("Hello World !!!\n");
+        }
+    }
+}
+\end{myjava}
+
+输出
+
+\begin{minted}{text}
+Hello World !!!
+Hello World !!!
+Hello World !!!
+Hello World !!!
+Hello World !!!
+Hello World !!!
+Hello World !!!
+Hello World !!!
+\end{minted}
+
+\begin{itemize}
+    \item \textbf{时间复杂度}: \mintinline{text}|"Hello World"|字符串打印了 $N$ 次, 所以时间复杂度是线性的, 也就是 $O(N)$.
+    \item \textbf{空间复杂度}: $O(1)$. 基本只有两个局部变量的空间开销.
+\end{itemize}
+
+\section{例子 3}
+
+\begin{myjava}
+class GFG {
+    public static void main(String[] args) {
+        int i, n = 8;
+        for (i = 1; i <= n; i = i * 2) {
+            System.out.printf("Hello World !!!\n");
+        }
+    }
+}
+\end{myjava}
+
+输出
+
+\begin{minted}{text}
+Hello World !!!
+Hello World !!!
+Hello World !!!
+Hello World !!!
+\end{minted}
+
+\begin{itemize}
+    \item \textbf{时间复杂度}: 打印的次数大概是 $O(\log{N})$ 次. 所以时间复杂度是 $O(\log{N})$.
+    \item \textbf{空间复杂度}: $O(1)$.
+\end{itemize}
+
+\section{例子 4}
+
+\begin{myjava}
+import java.lang.Math;
+class GFG {
+  public static void main(String args[]) {
+    int i, n = 8;
+    for (i = 2; i <= n; i=(int)Math.pow(i,2)) {
+        System.out.println("Hello World !!!");
+    }
+  }
+}
+\end{myjava}
+
+输出
+
+\begin{minted}{text}
+Hello World !!!
+Hello World !!!
+\end{minted}
+
+\begin{itemize}
+    \item \textbf{时间复杂度}: $O(\log{(\log{N})})$
+    \item \textbf{空间复杂度}: $O(1)$
+\end{itemize}
+
+\section{例子 5}
+
+\begin{myjava}
+class GFG {
+    public static int sum(int a, int b) {
+        return a + b;
+    }
+ 
+    public static void main(String[] args) {
+        int a = 5, b = 6;
+        System.out.println(sum(a, b));
+    }
+}
+\end{myjava}
+
+我们来对 \mintinline{java}|int sum(int a, int b)| 方法分析复杂度.
+
+\begin{itemize}
+    \item \textbf{时间复杂度}: \mintinline{java}|a + b| 加法操作的时间复杂度是 $O(1)$, \mintinline{java}|return| 语句的时间复杂度是 $O(1)$, 两者相加得到 $O(2) \approx O(1)$.
+    \item \textbf{空间复杂度}: $O(1)$.
+\end{itemize}
+
+\section{例子 6}
+
+
+\begin{myjava}
+class GFG {
+    static int list_Sum(int[] A, int n)
+    // A->array and
+    // n->number of elements in array
+    {
+        int sum = 0;                        // 开销=1, 执行次数=1
+        for (int i = 0; i <= n - 1; i++) {  // 开销=2, 执行次数=n+1 (+1 for the end false condition)
+            sum = sum + A[i];               // 开销=2, 执行次数=n
+        }
+        return sum;                         // 开销=1, 执行次数=1
+    }
+
+    public static void main(String[] args)
+    {
+        int[] A = { 5, 6, 1, 2 };
+        int n = A.length;
+        System.out.println(list_Sum(A, n));
+    }
+}
+\end{myjava}
+
+
+我们来分析 \mintinline{java}|int list_Sum(int[] A, int n)| 的时间复杂度.
+
+$$
+T(list\_Sum) = 1 + 2 \times (N+1) + 2 \times N + 1 = 4N + 4 = C_1 \times N + C_2 = O(N)
+$$
+
+空间复杂度还是 $O(1)$.
+
+\section{例子 7}
+
+
+\begin{myjava}
+int main()
+{
+    int n = 3;
+    int m = 3;
+    int arr[][3] = {
+        {3, 2, 7},
+        {2, 6, 8},
+        {5, 1, 9}
+    };
+    int sum = 0;
+ 
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            sum += arr[i][j]; // 开销=1, 执行次数=$m \times n$
+        }
+    }
+    System.out.println(sum);
+}
+\end{myjava}
+
+
+时间复杂度是 $O(m \times n)$.
+
+\section{例子 8: 二分查找的递归实现}
+
+
+\begin{myjava}
+int recursiveBinarySearch(int[] array, int target, int start, int end) {
+    if (target < array[start] || target > array[end] || start > end) {
+        return -1;
+    }
+
+    int middle = (start + end) / 2;
+
+    if (array[middle] > target) {
+        return recursiveBinarySearch(array, target, start, middle - 1);
+    } else if (array[middle] < target) {
+        return recursiveBinarySearch(array, target, middle + 1, end);
+    } else {
+        return middle;
+    }
+}
+\end{myjava}
+
+
+时间复杂度推导:
+
+$$
+T(N) = T(\frac{N}{2}) + O(1)
+$$
+
+这里假设一种理想情况, 也就是: $N = 2^M$, 也就是 $M = \log{N}$.
+
+\begin{equation*}
+    \begin{split}
+        T(2^M) &= T(\frac{2^M}{2}) + O(1) \\
+               &= T(2^{M-1}) + 1 \times O(1) \\
+               &= T(2^{M-2}) + 2 \times O(1) \\
+               &= T(2^{M-3}) + 3 \times O(1) \\
+               & ...... \\
+               &= T(2^{M-M}) + M \times O(1) \\
+               &= T(1) + M \times O(1) \\
+               &= O(M+1) \\
+               &\approx O(M) \\
+               &= O(\log{N})
+    \end{split}
+\end{equation*}
+
+\section{例子 9: 二分查找的循环实现}
+
+\begin{myjava}
+int binarySearch(int[] array, int target) {
+    int start = 0;
+    int end = array.length - 1;
+
+    while (start <= end) {
+        int middle = (start + end) / 2;
+
+        if (array[middle] > target) {
+            end = middle - 1;
+        } else if (array[middle] < target) {
+            start = middle + 1;
+        } else {
+            return middle;
+        }
+    }
+
+    return -1;
+}
+\end{myjava}
+
+实际上这个例子的时间复杂度基本等于 \mintinline{java}|while| 循环的执行次数, 由于每次循环都会砍掉一半的数组元素, 直到数组只剩下一个元素或者没找到目标为止. 所以循环次数是: $O(\log{N})$.
+
+所以时间复杂度是: $O(\log{N})$.
+
+\section{例子 10: 快速排序}
+
+
+\begin{myjava}
+// 快速排序的时间复杂度设为: $T(N)$
+// $N$ 是数组长度.
+void QuickSort(int[] A, int p, int r) {
+    if (p < r) {
+        int q = Partition(A, p, r); // $O(N)$
+        QuickSort(A, p, q - 1);     // $T(q-p)$
+        QuickSort(A, q + 1, r);     // $T(r-q)$
+    }
+}
+
+// Partition的时间复杂度是: $O(N)$
+int Partition(int[] A, int p, int r) {
+    int x = A[r];
+    int i = p - 1;
+    for (int j = p; j < r; j++) {
+        if (A[j] <= x) {
+            i++;
+            swap(A, i, j);
+        }
+    }
+    swap(A, i + 1, r);
+
+    return i + 1;
+}
+
+void swap(int[] A, int i, int j) {
+    int tmp = A[i];
+    A[i] = A[j];
+    A[j] = tmp;
+}
+\end{myjava}
+
+
+所以时间复杂度的递推式是: $T(N) = T(q-p) + T(r-q) + O(N)$. 当然我们知道 $T(1) = O(1)$.
+
+\textbf{理想情况}
+
+q将数组对半分开. 那么递推式是:
+
+$$
+T(N) = 2T(\frac{N}{2}) + O(N)
+$$
+
+我们还是假设 $N = 2^M$, 也就是 $M = \log{N}$. 推导过程如下:
+
+要注意一步推导过程: $T(2^{M-2}) \times 2^2 = T(2^M)$.
+
+\begin{equation*}
+    \begin{split}
+        T(2^M) &= 2T(2^{M-1}) + O(2^M) \\
+               &= 2(2T(2^{M-2}) + O(2^{M-1})) + 1 \times O(2^M) \\
+               &= 2^2 \times T(2^{M-2}) + 2 \times O(2^M) \\
+               &= 2^2 \times (2T(2^{M-3}) + O(2^{M-2})) + 2 \times O(2^M) \\
+               &= 2^3 \times T(2^{M-3}) + 3 \times O(2^M) \\
+               &...... \\
+               &= 2^M \times T(2^{M-M}) + M \times O(2^M) \\
+               &= 2^M \times T(1) + M \times O(2^M) \\
+               &= (M+1) \times O(2^M) \\
+               &\approx M \times O(2^M) \\
+               &= O(2^M \times M) \\
+               &= O(N\log{N})
+    \end{split}
+\end{equation*}
+
+\textbf{最坏情况}
+
+每次Partition之后, q的左边一个元素都没有.
+
+那么递推式是: $T(N) = T(N-1) + O(N)$.
+
+推导如下:
+
+\begin{equation*}
+    \begin{split}
+        T(N) &= T(N-1) + O(N) \\
+             &= T(N-2) + O(N) + O(N-1) \\
+             &= T(N-3) + O(N) + O(N-1) + O(N-2) \\
+             &= T(N-(N-1)) + O(N) + O(N-1) + ... + O(N-(N-2)) \\
+             &= T(1) + O(N) + ... + O(2) \\
+             &= O(\frac{N(N+1)}{2}) \\
+             &\approx O(N^2)
+    \end{split}
+\end{equation*}
+
+所以快速排序的最坏时间复杂度是: $O(N^2)$.
+
+\chapter{Java常用数据结构的时间复杂度}
+
+\section{常用数据结构}
+
+\subsection{动态数组}
+
+在 Java 中, 动态数组是 \mintinline{java}|java.util| 标准库中的 \mintinline{java}|ArrayList<T>|.
+
+\subsection{单向链表}
+
+在 Java 中, 标准库中不包含单向链表的实现.
+
+\begin{figure}
+    \centering
+    \begin{tikzpicture}
+        \begin{pgfonlayer}{nodelayer}
+            \node [style=none] (0) at (-4, 4) {};
+            \node [style=none] (1) at (-2, 4) {};
+            \node [style=none] (2) at (-1, 4) {};
+            \node [style=none] (3) at (-4, 3) {};
+            \node [style=none] (4) at (-2, 3) {};
+            \node [style=none] (5) at (-1, 3) {};
+            \node [style=none] (6) at (-3, 3.5) {1};
+            \node [style=none] (7) at (0, 4) {};
+            \node [style=none] (8) at (2, 4) {};
+            \node [style=none] (9) at (3, 4) {};
+            \node [style=none] (10) at (0, 3) {};
+            \node [style=none] (11) at (2, 3) {};
+            \node [style=none] (12) at (3, 3) {};
+            \node [style=none] (13) at (1, 3.5) {2};
+            \node [style=none] (14) at (4, 4) {};
+            \node [style=none] (15) at (6, 4) {};
+            \node [style=none] (16) at (7, 4) {};
+            \node [style=none] (17) at (4, 3) {};
+            \node [style=none] (18) at (6, 3) {};
+            \node [style=none] (19) at (7, 3) {};
+            \node [style=none] (20) at (5, 3.5) {3};
+            \node [style=none] (21) at (-1.5, 3.5) {};
+            \node [style=none] (22) at (2.5, 3.5) {};
+            \node [style=none] (23) at (0, 3.5) {};
+            \node [style=none] (24) at (4, 3.5) {};
+            \node [style=none] (25) at (6.5, 3.5) {$null$};
+        \end{pgfonlayer}
+        \begin{pgfonlayer}{edgelayer}
+            \draw (0.center) to (3.center);
+            \draw (3.center) to (5.center);
+            \draw (5.center) to (2.center);
+            \draw (2.center) to (0.center);
+            \draw (1.center) to (4.center);
+            \draw (7.center) to (10.center);
+            \draw (10.center) to (12.center);
+            \draw (12.center) to (9.center);
+            \draw (9.center) to (7.center);
+            \draw (8.center) to (11.center);
+            \draw (14.center) to (17.center);
+            \draw (17.center) to (19.center);
+            \draw (19.center) to (16.center);
+            \draw (16.center) to (14.center);
+            \draw (15.center) to (18.center);
+            \draw [style=diredge] (21.center) to (23.center);
+            \draw [style=diredge] (22.center) to (24.center);
+        \end{pgfonlayer}
+    \end{tikzpicture}
+    \caption{单向链表}    
+\end{figure}
+
+\subsection{双向链表}
+
+在 Java 中, 双向链表是 \mintinline{java}|java.util| 标准库中的 \mintinline{java}|LinkedList<T>|.
+
+\begin{figure}
+    \centering
+    \scalebox{.8}{
+    \begin{tikzpicture}
+        \begin{pgfonlayer}{nodelayer}
+            \node [style=none] (0) at (0, 4) {};
+            \node [style=none] (1) at (2, 4) {};
+            \node [style=none] (2) at (3, 4) {};
+            \node [style=none] (3) at (3, 3) {};
+            \node [style=none] (4) at (2, 3) {};
+            \node [style=none] (5) at (0, 3) {};
+            \node [style=none] (6) at (-1, 3) {};
+            \node [style=none] (7) at (-1, 4) {};
+            \node [style=none] (8) at (5, 4) {};
+            \node [style=none] (9) at (7, 4) {};
+            \node [style=none] (10) at (8, 4) {};
+            \node [style=none] (11) at (8, 3) {};
+            \node [style=none] (12) at (7, 3) {};
+            \node [style=none] (13) at (5, 3) {};
+            \node [style=none] (14) at (4, 3) {};
+            \node [style=none] (15) at (4, 4) {};
+            \node [style=none] (16) at (10, 4) {};
+            \node [style=none] (17) at (12, 4) {};
+            \node [style=none] (18) at (13, 4) {};
+            \node [style=none] (19) at (13, 3) {};
+            \node [style=none] (20) at (12, 3) {};
+            \node [style=none] (21) at (10, 3) {};
+            \node [style=none] (22) at (9, 3) {};
+            \node [style=none] (23) at (9, 4) {};
+            \node [style=none] (24) at (-0.5, 3.5) {$null$};
+            \node [style=none] (25) at (12.5, 3.5) {$null$};
+            \node [style=none] (26) at (2.5, 3.25) {};
+            \node [style=none] (27) at (4, 3.25) {};
+            \node [style=none] (28) at (7.5, 3.25) {};
+            \node [style=none] (29) at (9, 3.25) {};
+            \node [style=none] (30) at (9.5, 3.75) {};
+            \node [style=none] (31) at (8, 3.75) {};
+            \node [style=none] (32) at (4.5, 3.75) {};
+            \node [style=none] (33) at (3, 3.75) {};
+            \node [style=none] (34) at (1, 3.5) {1};
+            \node [style=none] (35) at (6, 3.5) {2};
+            \node [style=none] (36) at (11, 3.5) {3};
+        \end{pgfonlayer}
+        \begin{pgfonlayer}{edgelayer}
+            \draw (7.center) to (2.center);
+            \draw (2.center) to (3.center);
+            \draw (3.center) to (6.center);
+            \draw (6.center) to (7.center);
+            \draw (0.center) to (5.center);
+            \draw (1.center) to (4.center);
+            \draw (15.center) to (10.center);
+            \draw (10.center) to (11.center);
+            \draw (11.center) to (14.center);
+            \draw (14.center) to (15.center);
+            \draw (8.center) to (13.center);
+            \draw (9.center) to (12.center);
+            \draw (23.center) to (18.center);
+            \draw (18.center) to (19.center);
+            \draw (19.center) to (22.center);
+            \draw (22.center) to (23.center);
+            \draw (16.center) to (21.center);
+            \draw (17.center) to (20.center);
+            \draw [style=diredge] (26.center) to (27.center);
+            \draw [style=diredge] (28.center) to (29.center);
+            \draw [style=diredge] (32.center) to (33.center);
+            \draw [style=diredge] (30.center) to (31.center);
+        \end{pgfonlayer}
+    \end{tikzpicture}}
+    \caption{双向链表}    
+\end{figure}
+
+\subsection{哈希表}
+
+在 Java 中, 哈希表是 \mintinline{java}|java.util| 中的 \mintinline{java}|HashMap<K, V>|.
+
+哈希表也叫做\textbf{无序字典(Unordered Dictionary)}.
+
+而 Java 中的\textbf{无序集合} \mintinline{java}|Set<T>| 是基于 \mintinline{java}|HashMap<K, V>| 实现的, 也就是当泛型 V 是 \mintinline{java}|null| 时, 哈希表的 key 组成的集合可以用来当作无序集合, 可用来去重.
+
+\begin{figure}
+\centering
+\begin{tikzpicture}
+    \begin{pgfonlayer}{nodelayer}
+        \node [style=none] (0) at (-10.5, 7) {};
+        \node [style=none] (1) at (-9.5, 7) {};
+        \node [style=none] (2) at (-10.5, 6.5) {};
+        \node [style=none] (3) at (-9.5, 6.5) {};
+        \node [style=none] (4) at (-8, 7) {};
+        \node [style=none] (5) at (-8, 6.5) {};
+        \node [style=none] (6) at (-10.5, 6) {};
+        \node [style=none] (7) at (-9.5, 6) {};
+        \node [style=none] (8) at (-8, 6) {};
+        \node [style=none] (9) at (-10.5, 5.5) {};
+        \node [style=none] (10) at (-9.5, 5.5) {};
+        \node [style=none] (11) at (-8, 5.5) {};
+        \node [style=none] (12) at (-10.5, 5) {};
+        \node [style=none] (13) at (-9.5, 5) {};
+        \node [style=none] (14) at (-8, 5) {};
+        \node [style=none] (15) at (-10, 6.75) {键};
+        \node [style=none] (16) at (-8.75, 6.75) {值};
+        \node [style=none] (17) at (-10, 6.25) {$key_1$};
+        \node [style=none] (18) at (-8.75, 6.25) {$value_1$};
+        \node [style=none] (19) at (-10, 5.75) {$key_2$};
+        \node [style=none] (20) at (-8.75, 5.75) {$value_2$};
+        \node [style=none] (21) at (-10, 5.25) {$key_3$};
+        \node [style=none] (22) at (-8.75, 5.25) {$value_3$};
+    \end{pgfonlayer}
+    \begin{pgfonlayer}{edgelayer}
+        \draw (0.center) to (4.center);
+        \draw (4.center) to (14.center);
+        \draw (12.center) to (14.center);
+        \draw (0.center) to (12.center);
+        \draw (2.center) to (5.center);
+        \draw (1.center) to (13.center);
+        \draw (6.center) to (8.center);
+        \draw (9.center) to (11.center);
+    \end{pgfonlayer}
+\end{tikzpicture}
+\caption{哈希表}
+\end{figure}
+
+\subsection{二叉搜索树}
+
+二叉搜索树的缺点在于, 在某些情况下可能退化为链表, 倒置插入和查询的时间复杂度退化为 $O(N)$.
+
+\begin{figure}
+    \scalebox{.5}{
+    \begin{tikzpicture}
+        \begin{pgfonlayer}{nodelayer}
+            \node [style=none] (0) at (5, 4) {};
+            \node [style=none] (1) at (8, 4) {};
+            \node [style=none] (2) at (5, 3) {};
+            \node [style=none] (3) at (8, 3) {};
+            \node [style=none] (4) at (6, 4) {};
+            \node [style=none] (5) at (6, 3) {};
+            \node [style=none] (6) at (7, 4) {};
+            \node [style=none] (7) at (7, 3) {};
+            \node [style=none] (8) at (6.5, 3.5) {8};
+            \node [style=none] (9) at (-1.5, 2) {};
+            \node [style=none] (10) at (1.5, 2) {};
+            \node [style=none] (11) at (-1.5, 1) {};
+            \node [style=none] (12) at (1.5, 1) {};
+            \node [style=none] (13) at (-0.5, 2) {};
+            \node [style=none] (14) at (-0.5, 1) {};
+            \node [style=none] (15) at (0.5, 2) {};
+            \node [style=none] (16) at (0.5, 1) {};
+            \node [style=none] (17) at (0, 1.5) {3};
+            \node [style=none] (18) at (11, 2) {};
+            \node [style=none] (19) at (14, 2) {};
+            \node [style=none] (20) at (11, 1) {};
+            \node [style=none] (21) at (14, 1) {};
+            \node [style=none] (22) at (12, 2) {};
+            \node [style=none] (23) at (12, 1) {};
+            \node [style=none] (24) at (13, 2) {};
+            \node [style=none] (25) at (13, 1) {};
+            \node [style=none] (26) at (12.5, 1.5) {10};
+            \node [style=none] (27) at (0, 2) {};
+            \node [style=none] (28) at (5.5, 3.5) {};
+            \node [style=none] (29) at (7.5, 3.5) {};
+            \node [style=none] (30) at (12.5, 2) {};
+            \node [style=none] (31) at (-5, -1) {};
+            \node [style=none] (32) at (-2, -1) {};
+            \node [style=none] (33) at (-5, -2) {};
+            \node [style=none] (34) at (-2, -2) {};
+            \node [style=none] (35) at (-4, -1) {};
+            \node [style=none] (36) at (-4, -2) {};
+            \node [style=none] (37) at (-3, -1) {};
+            \node [style=none] (38) at (-3, -2) {};
+            \node [style=none] (39) at (-3.5, -1.5) {1};
+            \node [style=none] (40) at (2.5, -1) {};
+            \node [style=none] (41) at (5.5, -1) {};
+            \node [style=none] (42) at (2.5, -2) {};
+            \node [style=none] (43) at (5.5, -2) {};
+            \node [style=none] (44) at (3.5, -1) {};
+            \node [style=none] (45) at (3.5, -2) {};
+            \node [style=none] (46) at (4.5, -1) {};
+            \node [style=none] (47) at (4.5, -2) {};
+            \node [style=none] (48) at (4, -1.5) {6};
+            \node [style=none] (49) at (-3.5, -1) {};
+            \node [style=none] (50) at (4, -1) {};
+            \node [style=none] (51) at (-1, 1.5) {};
+            \node [style=none] (52) at (1, 1.5) {};
+            \node [style=none] (53) at (-4.5, -1.5) {$null$};
+            \node [style=none] (54) at (-2.5, -1.5) {$null$};
+            \node [style=none] (55) at (11.5, 1.5) {$null$};
+            \node [style=none] (56) at (-1, -3.75) {};
+            \node [style=none] (57) at (2, -3.75) {};
+            \node [style=none] (58) at (-1, -4.75) {};
+            \node [style=none] (59) at (2, -4.75) {};
+            \node [style=none] (60) at (0, -3.75) {};
+            \node [style=none] (61) at (0, -4.75) {};
+            \node [style=none] (62) at (1, -3.75) {};
+            \node [style=none] (63) at (1, -4.75) {};
+            \node [style=none] (64) at (0.5, -4.25) {4};
+            \node [style=none] (65) at (6.5, -3.75) {};
+            \node [style=none] (66) at (9.5, -3.75) {};
+            \node [style=none] (67) at (6.5, -4.75) {};
+            \node [style=none] (68) at (9.5, -4.75) {};
+            \node [style=none] (69) at (7.5, -3.75) {};
+            \node [style=none] (70) at (7.5, -4.75) {};
+            \node [style=none] (71) at (8.5, -3.75) {};
+            \node [style=none] (72) at (8.5, -4.75) {};
+            \node [style=none] (73) at (8, -4.25) {7};
+            \node [style=none] (74) at (0.5, -3.75) {};
+            \node [style=none] (75) at (8, -3.75) {};
+            \node [style=none] (76) at (3, -1.5) {};
+            \node [style=none] (77) at (5, -1.5) {};
+            \node [style=none] (78) at (-0.5, -4.25) {$null$};
+            \node [style=none] (79) at (1.5, -4.25) {$null$};
+            \node [style=none] (80) at (7, -4.25) {$null$};
+            \node [style=none] (81) at (9, -4.25) {$null$};
+            \node [style=none] (82) at (11.75, -3) {};
+            \node [style=none] (83) at (14.75, -3) {};
+            \node [style=none] (84) at (11.75, -4) {};
+            \node [style=none] (85) at (14.75, -4) {};
+            \node [style=none] (86) at (12.75, -3) {};
+            \node [style=none] (87) at (12.75, -4) {};
+            \node [style=none] (88) at (13.75, -3) {};
+            \node [style=none] (89) at (13.75, -4) {};
+            \node [style=none] (90) at (13.25, -3.5) {13};
+            \node [style=none] (91) at (15, 0) {};
+            \node [style=none] (92) at (18, 0) {};
+            \node [style=none] (93) at (15, -1) {};
+            \node [style=none] (94) at (18, -1) {};
+            \node [style=none] (95) at (16, 0) {};
+            \node [style=none] (96) at (16, -1) {};
+            \node [style=none] (97) at (17, 0) {};
+            \node [style=none] (98) at (17, -1) {};
+            \node [style=none] (99) at (16.5, -0.5) {14};
+            \node [style=none] (100) at (13.25, -3) {};
+            \node [style=none] (101) at (16.5, 0) {};
+            \node [style=none] (102) at (13.5, 1.5) {};
+            \node [style=none] (103) at (15.5, -0.5) {};
+            \node [style=none] (104) at (17.5, -0.5) {$null$};
+            \node [style=none] (105) at (12.25, -3.5) {$null$};
+            \node [style=none] (106) at (14.25, -3.5) {$null$};
+        \end{pgfonlayer}
+        \begin{pgfonlayer}{edgelayer}
+            \draw (0.center) to (1.center);
+            \draw (1.center) to (3.center);
+            \draw (3.center) to (2.center);
+            \draw (2.center) to (0.center);
+            \draw (4.center) to (5.center);
+            \draw (6.center) to (7.center);
+            \draw (9.center) to (10.center);
+            \draw (10.center) to (12.center);
+            \draw (12.center) to (11.center);
+            \draw (11.center) to (9.center);
+            \draw (13.center) to (14.center);
+            \draw (15.center) to (16.center);
+            \draw (18.center) to (19.center);
+            \draw (19.center) to (21.center);
+            \draw (21.center) to (20.center);
+            \draw (20.center) to (18.center);
+            \draw (22.center) to (23.center);
+            \draw (24.center) to (25.center);
+            \draw (28.center) to (27.center);
+            \draw (29.center) to (30.center);
+            \draw (31.center) to (32.center);
+            \draw (32.center) to (34.center);
+            \draw (34.center) to (33.center);
+            \draw (33.center) to (31.center);
+            \draw (35.center) to (36.center);
+            \draw (37.center) to (38.center);
+            \draw (40.center) to (41.center);
+            \draw (41.center) to (43.center);
+            \draw (43.center) to (42.center);
+            \draw (42.center) to (40.center);
+            \draw (44.center) to (45.center);
+            \draw (46.center) to (47.center);
+            \draw (51.center) to (49.center);
+            \draw (52.center) to (50.center);
+            \draw (56.center) to (57.center);
+            \draw (57.center) to (59.center);
+            \draw (59.center) to (58.center);
+            \draw (58.center) to (56.center);
+            \draw (60.center) to (61.center);
+            \draw (62.center) to (63.center);
+            \draw (65.center) to (66.center);
+            \draw (66.center) to (68.center);
+            \draw (68.center) to (67.center);
+            \draw (67.center) to (65.center);
+            \draw (69.center) to (70.center);
+            \draw (71.center) to (72.center);
+            \draw (76.center) to (74.center);
+            \draw (77.center) to (75.center);
+            \draw (82.center) to (83.center);
+            \draw (83.center) to (85.center);
+            \draw (85.center) to (84.center);
+            \draw (84.center) to (82.center);
+            \draw (86.center) to (87.center);
+            \draw (88.center) to (89.center);
+            \draw (91.center) to (92.center);
+            \draw (92.center) to (94.center);
+            \draw (94.center) to (93.center);
+            \draw (93.center) to (91.center);
+            \draw (95.center) to (96.center);
+            \draw (97.center) to (98.center);
+            \draw (102.center) to (101.center);
+            \draw (103.center) to (100.center);
+        \end{pgfonlayer}
+    \end{tikzpicture}}
+    \caption{二叉搜索树}    
+\end{figure}
+
+\subsection{B树}
+
+B树的特点在于它是\textbf{多叉搜索树}, 所以层数不会很多, 比较适合存储在磁盘上.
+
+B树的扩展B+树经常作为数据库索引的实现方式, 例如MySQL的索引实现就是B+树.
+
+\begin{figure}
+    \centering
+    \scalebox{.8}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=none] (0) at (-2, -11) {};
+                \node [style=none] (1) at (2, -11) {};
+                \node [style=none] (2) at (-2, -12) {};
+                \node [style=none] (3) at (2, -12) {};
+                \node [style=hadamard] (5) at (-0.5, -11.5) {16};
+                \node [style=none] (6) at (-2, -13) {};
+                \node [style=none] (7) at (2, -13) {};
+                \node [style=none] (8) at (-2, -14) {};
+                \node [style=none] (9) at (2, -14) {};
+                \node [style=hadamard] (10) at (-1.5, -13.5) {9};
+                \node [style=none] (12) at (-7, -13) {};
+                \node [style=none] (13) at (-3, -13) {};
+                \node [style=none] (14) at (-7, -14) {};
+                \node [style=none] (15) at (-3, -14) {};
+                \node [style=hadamard] (16) at (-6.5, -13.5) {1};
+                \node [style=hadamard] (17) at (-5.5, -13.5) {2};
+                \node [style=hadamard] (18) at (-4.5, -13.5) {5};
+                \node [style=hadamard] (19) at (-3.5, -13.5) {6};
+                \node [style=none] (20) at (3, -13) {};
+                \node [style=none] (21) at (7, -13) {};
+                \node [style=none] (22) at (3, -14) {};
+                \node [style=none] (23) at (7, -14) {};
+                \node [style=hadamard] (24) at (3.5, -13.5) {18};
+                \node [style=hadamard] (25) at (4.5, -13.5) {21};
+                \node [style=none] (26) at (-1, -12) {};
+                \node [style=none] (27) at (-1, -13) {};
+                \node [style=none] (28) at (0, -12) {};
+                \node [style=none] (29) at (-5, -13) {};
+                \node [style=hadamard] (30) at (-0.5, -13.5) {12};
+                \node [style=hadamard] (32) at (-1.5, -11.5) {7};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw (0.center) to (1.center);
+                \draw (1.center) to (3.center);
+                \draw (3.center) to (2.center);
+                \draw (2.center) to (0.center);
+                \draw (6.center) to (7.center);
+                \draw (7.center) to (9.center);
+                \draw (9.center) to (8.center);
+                \draw (8.center) to (6.center);
+                \draw (12.center) to (13.center);
+                \draw (13.center) to (15.center);
+                \draw (15.center) to (14.center);
+                \draw (14.center) to (12.center);
+                \draw (20.center) to (21.center);
+                \draw (21.center) to (23.center);
+                \draw (23.center) to (22.center);
+                \draw (22.center) to (20.center);
+                \draw (26.center) to (27.center);
+                \draw (28.center) to (20.center);
+                \draw (2.center) to (29.center);
+            \end{pgfonlayer}
+        \end{tikzpicture}        
+    }
+    \caption{B树}    
+\end{figure}
+
+\subsection{红黑树}
+
+在 Java 中, \mintinline{java}|TreeMap<K, V>| 数据结构的底层使用红黑树实现.
+
+\mintinline{java}|TreeMap<K, V>| 也叫做\textbf{有序字典(Ordered Dictionary)}.
+
+\mintinline{java}|TreeMap<K, V>| 可以存储 key-value 键值对, 同时是按照 key 进行排序的.
+
+而 \mintinline{java}|TreeSet<T>| 基于 \mintinline{java}|TreeMap<K, V>| 实现. 也就是\textbf{有序集合}.
+
+红黑树的特性:
+
+\begin{enumerate}
+    \item 每个节点不是红色就是黑色.
+    \item 所有的NIL节点都是黑色.
+    \item 红色节点不能有红色孩子.
+    \item 给定一个节点, 从这个节点到任意一个NIL后代的路径中所包含的黑色节点数量是一样的.
+\end{enumerate}
+
+\begin{figure}
+    \centering
+    \scalebox{.5}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=none] (0) at (4, -14) {};
+                \node [style=none] (1) at (5, -14) {};
+                \node [style=none] (2) at (4, -15) {};
+                \node [style=none] (3) at (5, -15) {};
+                \node [style=none] (4) at (-7, -14) {};
+                \node [style=none] (5) at (-6, -14) {};
+                \node [style=none] (6) at (-7, -15) {};
+                \node [style=none] (7) at (-6, -15) {};
+                \node [style=none] (8) at (-6.5, -14.5) {8};
+                \node [style=none] (9) at (4.5, -14.5) {17};
+                \node [style=none] (10) at (-7, -18) {};
+                \node [style=none] (11) at (-6, -18) {};
+                \node [style=none] (12) at (-7, -19) {};
+                \node [style=none] (13) at (-6, -19) {};
+                \node [style=none] (14) at (-6.5, -18.5) {6};
+                \node [style=none] (15) at (6.75, -19) {};
+                \node [style=none] (16) at (7.75, -19) {};
+                \node [style=none] (17) at (6.75, -20) {};
+                \node [style=none] (18) at (7.75, -20) {};
+                \node [style=none] (19) at (9.75, -19) {};
+                \node [style=none] (20) at (10.75, -19) {};
+                \node [style=none] (21) at (9.75, -20) {};
+                \node [style=none] (22) at (10.75, -20) {};
+                \node [style=none] (23) at (7.25, -19.5) {22};
+                \node [style=none] (24) at (10.25, -19.5) {27};
+                \node [style=none] (25) at (-2, -12) {};
+                \node [style=none] (26) at (-1, -12) {};
+                \node [style=none] (27) at (-2, -13) {};
+                \node [style=none] (28) at (-1, -13) {};
+                \node [style=none] (29) at (-1.5, -12.5) {\textcolor{white}{13}};
+                \node [style=none] (30) at (-10, -16) {};
+                \node [style=none] (31) at (-9, -16) {};
+                \node [style=none] (32) at (-10, -17) {};
+                \node [style=none] (33) at (-9, -17) {};
+                \node [style=none] (34) at (-9.5, -16.5) {\textcolor{white}{1}};
+                \node [style=none] (35) at (-4, -16) {};
+                \node [style=none] (36) at (-3, -16) {};
+                \node [style=none] (37) at (-4, -17) {};
+                \node [style=none] (38) at (-3, -17) {};
+                \node [style=none] (39) at (-3.5, -16.5) {\textcolor{white}{11}};
+                \node [style=none] (40) at (0.75, -16) {};
+                \node [style=none] (41) at (1.75, -16) {};
+                \node [style=none] (42) at (0.75, -17) {};
+                \node [style=none] (43) at (1.75, -17) {};
+                \node [style=none] (44) at (1.25, -16.5) {\textcolor{white}{15}};
+                \node [style=none] (45) at (8, -16) {};
+                \node [style=none] (46) at (9, -16) {};
+                \node [style=none] (47) at (8, -17) {};
+                \node [style=none] (48) at (9, -17) {};
+                \node [style=none] (49) at (8.5, -16.5) {\textcolor{white}{25}};
+                \node [style=none] (50) at (7.25, -18.75) {};
+                \node [style=none] (51) at (10.25, -18.75) {};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw [style=red fill] (3.center)
+                     to [bend left=45] (2.center)
+                     to [bend left=45] (0.center)
+                     to [bend left=45] (1.center)
+                     to [bend left=45] cycle;
+                \draw [style=red fill] (7.center)
+                     to [bend left=45] (6.center)
+                     to [bend left=45] (4.center)
+                     to [bend left=45] (5.center)
+                     to [bend left=45] cycle;
+                \draw [style=red fill] (13.center)
+                     to [bend left=45] (12.center)
+                     to [bend left=45] (10.center)
+                     to [bend left=45] (11.center)
+                     to [bend left=45] cycle;
+                \draw [style=red fill] (18.center)
+                     to [bend left=45] (17.center)
+                     to [bend left=45] (15.center)
+                     to [bend left=45] (16.center)
+                     to [bend left=45] cycle;
+                \draw [style=red fill] (22.center)
+                     to [bend left=45] (21.center)
+                     to [bend left=45] (19.center)
+                     to [bend left=45] (20.center)
+                     to [bend left=45] cycle;
+                \draw [style=black fill] (27.center)
+                     to [bend left=45] (25.center)
+                     to [bend left=45] (26.center)
+                     to [bend left=45] (28.center)
+                     to [bend left=45] cycle;
+                \draw [style=black fill] (32.center)
+                     to [bend left=45] (30.center)
+                     to [bend left=45] (31.center)
+                     to [bend left=45] (33.center)
+                     to [bend left=45] cycle;
+                \draw [style=black fill] (37.center)
+                     to [bend left=45] (35.center)
+                     to [bend left=45] (36.center)
+                     to [bend left=45] (38.center)
+                     to [bend left=45] cycle;
+                \draw [style=black fill] (42.center)
+                     to [bend left=45] (40.center)
+                     to [bend left=45] (41.center)
+                     to [bend left=45] (43.center)
+                     to [bend left=45] cycle;
+                \draw [style=black fill] (47.center)
+                     to [bend left=45] (45.center)
+                     to [bend left=45] (46.center)
+                     to [bend left=45] (48.center)
+                     to [bend left=45] cycle;
+                \draw [style=diredge] (27.center) to (5.center);
+                \draw [style=diredge] (28.center) to (0.center);
+                \draw [style=diredge] (6.center) to (31.center);
+                \draw [style=diredge] (33.center) to (10.center);
+                \draw [style=diredge] (7.center) to (35.center);
+                \draw [style=diredge] (2.center) to (41.center);
+                \draw [style=diredge] (3.center) to (45.center);
+                \draw [style=diredge] (47.center) to (50.center);
+                \draw [style=diredge] (48.center) to (51.center);
+            \end{pgfonlayer}
+        \end{tikzpicture}
+    }
+    \caption{红黑树}
+\end{figure}
+
+\section{最佳时间复杂度}
+
+\begin{center}
+
+\begin{table}
+\centering
+\tiny{
+\begin{tabular}{|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|}
+\hline 
+ 数据结构 & 访问元素 & 搜索元素 & 插入元素 & 删除元素 \\
+\hline 
+ 数组 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 栈 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 队列 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 单向链表 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 双向链表 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 哈希表 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 二叉搜索树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+\hline 
+ B树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+\hline 
+ 红黑树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+ \hline
+\end{tabular}}
+\caption{最佳时间复杂度}
+\end{table}
+\end{center}
+
+\section{最坏时间复杂度}
+
+\begin{center}
+
+\begin{table}[!h]
+\centering
+\tiny{
+\begin{tabular}{|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|}
+\hline 
+ 数据结构 & 访问元素 & 搜索元素 & 插入元素 & 删除元素 \\
+\hline 
+ 数组 & $\displaystyle O( 1)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ \\
+\hline 
+ 栈 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 队列 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 单向链表 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ \\
+\hline 
+ 双向链表 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 哈希表 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ \\
+\hline 
+ 二叉搜索树 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ \\
+\hline 
+ B树 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ \\
+\hline 
+ 红黑树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+ \hline
+\end{tabular}}
+\caption{最坏时间复杂度}
+\end{table}
+\end{center}
+
+\section{平均时间复杂度}
+
+\begin{center}
+
+\begin{table}[!h]
+\centering
+\tiny{
+\begin{tabular}{|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|p{0.15\textwidth}|}
+\hline 
+ 数据结构 & 访问元素 & 搜索元素 & 插入元素 & 删除元素 \\
+\hline 
+ 数组 & $\displaystyle O( 1)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( N)$ \\
+\hline 
+ 栈 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 队列 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 单向链表 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 双向链表 & $\displaystyle O( N)$ & $\displaystyle O( N)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 哈希表 & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ & $\displaystyle O( 1)$ \\
+\hline 
+ 二叉搜索树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+\hline 
+ B树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+\hline 
+ 红黑树 & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ & $\displaystyle O(\log N)$ \\
+ \hline
+\end{tabular}}
+\caption{平均时间复杂度}
+\end{table}
+\end{center}
+
+\chapter{两数之和}
+
+\section{题目}
+
+给定一个整数数组nums和一个整数目标值target, 请你在该数组中找出和为目标值target的那两个整数, 并返回它们的数组下标.
+
+你可以假设每种输入只会对应一个答案. 但是, 数组中同一个元素在答案里不能重复出现.
+
+你可以按任意顺序返回答案.
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: nums = [2,7,11,15], target = 9
+输出: [0,1]
+解释: 因为 nums[0] + nums[1] == 9, 返回 [0, 1].
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: nums = [3,2,4], target = 6
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: nums = [3,3], target = 6
+输出: [0,1]
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+  \item $2 <= nums.length <= 10^4$
+  \item $-10^9 <= nums[i] <= 10^9$
+  \item $-10^9 <= target <= 10^9$
+  \item 只会存在一个有效答案
+\end{itemize}
+
+\textbf{进阶}: 你可以想出一个时间复杂度小于 $O(n^2)$ 的算法吗?
+
+\section{解法}
+
+\subsection{暴力法}
+
+\begin{figure}
+    \centering
+    \scalebox{1}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=none] (0) at (-6, -12) {};
+                \node [style=none] (1) at (-5, -12) {};
+                \node [style=none] (2) at (-4, -12) {};
+                \node [style=none] (3) at (-3, -12) {};
+                \node [style=none] (4) at (-2, -12) {};
+                \node [style=none] (5) at (-1, -12) {};
+                \node [style=none] (6) at (0, -12) {};
+                \node [style=none] (7) at (-7, -12) {};
+                \node [style=none] (8) at (-7, -13) {};
+                \node [style=none] (9) at (-6, -13) {};
+                \node [style=none] (10) at (-5, -13) {};
+                \node [style=none] (11) at (-4, -13) {};
+                \node [style=none] (12) at (-3, -13) {};
+                \node [style=none] (13) at (-2, -13) {};
+                \node [style=none] (14) at (-1, -13) {};
+                \node [style=none] (15) at (0, -13) {};
+                \node [style=none] (16) at (-8, -12) {};
+                \node [style=none] (17) at (-8, -13) {};
+                \node [style=none] (18) at (-6.5, -11) {};
+                \node [style=none] (19) at (-6.5, -12) {};
+                \node [style=none] (20) at (-6.5, -10.65) {$i$};
+                \node [style=none] (21) at (-5.5, -13.5) {};
+                \node [style=none] (22) at (0, -13.5) {};
+                \node [style=none] (23) at (-5.5, -14) {$j$};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw (7.center) to (6.center);
+                \draw (6.center) to (15.center);
+                \draw (8.center) to (15.center);
+                \draw (7.center) to (8.center);
+                \draw (0.center) to (9.center);
+                \draw (1.center) to (10.center);
+                \draw (2.center) to (11.center);
+                \draw (3.center) to (12.center);
+                \draw (4.center) to (13.center);
+                \draw (5.center) to (14.center);
+                \draw (16.center) to (7.center);
+                \draw (16.center) to (17.center);
+                \draw (17.center) to (8.center);
+                \draw [style=diredge] (18.center) to (19.center);
+                \draw [style=diredge] (21.center) to (22.center);
+            \end{pgfonlayer}
+        \end{tikzpicture}
+    }
+    \caption{暴力法}
+\end{figure}
+
+如图所示, $i$ 为当前遍历到的元素, 然后从 $i+1$ 也就是 $j$ 的初始值开始往后寻找和第 $i$ 个元素相加等于target的元素.
+
+\begin{myjava}
+class Solution {
+    public int[] twoSum(int[] nums, int target) {
+        // 因为循环的存在, 以下时间复杂度可以忽略.
+        int[] result = new int[2]; // $O(1)$
+
+        // 外层循环最多是 $N$ 次
+        for (int i = 0; i < nums.length; i++) {
+            // 内存循环最多 $N - i - 1$ 次
+            for (int j = i + 1; j < nums.length; j++) {
+                // 以下几行的时间复杂度可以近似为 $O(1)$
+                if (nums[i] + nums[j] == target) { // $O(1)$
+                    result[0] = i; // $O(1)$
+                    result[1] = j; // $O(1)$
+                    return result; // $O(1)$
+                }
+            }
+        }
+
+        // 因为循环的存在, 以下时间复杂度可以忽略.
+        return null; // $O(1)$
+    }
+}
+\end{myjava}
+
+所以时间复杂度的计算过程如下:
+
+\begin{equation*}
+    \begin{split}
+    T(N) &= O(N-0-1) + O(N-1-1) + ... + O(N-(N-1)-1) \\
+         &= O(N-1) + O(N-2) + ... + O(0) \\
+         &= O(\frac{N-1}{2}) \\
+         &\approx O(N^2)
+    \end{split}
+\end{equation*}
+
+\subsection{哈希法}
+
+暴力解法的问题是时间复杂度是 $O(N^2)$. 所以我们需要把时间复杂度降下来. 这里考虑使用哈希表来解决这个问题.
+
+哈希表的key是\textbf{数组元素}.
+
+哈希表的value是\textbf{数组元素的索引}.
+
+每遍历一个数组元素, 就在哈希表中查看一下是否有某个key和当前遍历的数组元素相加为target. 如果有, 那么直接返回. 如果没有, 那么将当前遍历的数组元素作为key, 索引作为value, 插入到哈希表中.
+
+
+\begin{table}[!h]
+\centering
+    
+\begin{tabular}{|p{0.30\textwidth}|p{0.30\textwidth}|}
+\hline 
+数组元素 & 数组元素的索引 \\
+\hline 
+3 & 0 \\
+\hline 
+2 & 1 \\
+\hline 
+4 & 2 \\
+\hline
+\end{tabular}
+\caption{一遍哈希表解决方法}
+\end{table}
+
+\begin{myjava}
+class Solution {
+    public int[] twoSum(int[] nums, int target) {
+        var result = new int[2];
+
+        var map = new HashMap<Integer, Integer>();
+        // 循环次数最多是 $O(N)$ 次.
+        for (int i = 0; i < nums.length; i++) {
+            // 以下条件语句的时间复杂度可以近似为 $O(1)$
+            if (map.get(target - nums[i]) != null) {
+                result[0] = i;
+                result[1] = map.get(target - nums[i]);
+                return result;
+            } else {
+                map.put(nums[i], i);
+            }
+        }
+
+        return null;
+    }
+}
+\end{myjava}
+
+所以时间复杂度是 $O(N)$.
+
+\chapter{两数相加}
+
+\section{题目}
+
+给你两个\textbf{非空}的链表, 表示两个非负的整数. 它们每位数字都是按照\textbf{逆序}的方式存储的, 并且每个节点只能存储\textbf{一位}数字.
+
+请你将两个数相加, 并以相同形式返回一个表示和的链表.
+
+你可以假设除了数字 0 之外, 这两个数都不会以 0 开头.
+
+\textbf{示例 1}:
+
+\begin{figure}
+    \centering
+    \scalebox{1}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=vertex set] (0) at (-5, -12) {2};
+                \node [style=vertex set] (1) at (-4, -12) {4};
+                \node [style=vertex set] (2) at (-3, -12) {3};
+                \node [style=vertex set] (3) at (-5, -13) {5};
+                \node [style=vertex set] (4) at (-4, -13) {6};
+                \node [style=vertex set] (5) at (-3, -13) {4};
+                \node [style=none] (6) at (-6, -13.5) {};
+                \node [style=none] (7) at (-2, -13.5) {};
+                \node [style=vertex set] (8) at (-5, -14) {7};
+                \node [style=vertex set] (9) at (-4, -14) {0};
+                \node [style=vertex set] (10) at (-3, -14) {8};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw [style=diredge] (0) to (1);
+                \draw [style=diredge] (1) to (2);
+                \draw [style=diredge] (3) to (4);
+                \draw [style=diredge] (4) to (5);
+                \draw (6.center) to (7.center);
+                \draw [style=diredge] (8) to (9);
+                \draw [style=diredge] (9) to (10);
+            \end{pgfonlayer}
+        \end{tikzpicture}        
+    }
+    \caption{两数相加: 示例1示意图}
+\end{figure}
+
+
+\begin{minted}{text}
+输入: l1 = [2,4,3], l2 = [5,6,4]
+输出: [7,0,8]
+解释: 342 + 465 = 807.
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: l1 = [0], l2 = [0]
+输出: [0]
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: l1 = [9,9,9,9,9,9,9], l2 = [9,9,9,9]
+输出: [8,9,9,9,0,0,0,1]
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+  \item 每个链表中的节点数在范围 [1, 100] 内
+  \item 0 <= Node.val <= 9
+  \item 题目数据保证列表表示的数字不含前导零
+\end{itemize}
+
+\section{链表基础知识}
+
+链表的内存布局. 局部性不够好.
+
+\section{解法}
+
+\begin{myjava}
+/**
+ * Definition for singly-linked list.
+ * public class ListNode {
+ *     int val;
+ *     ListNode next;
+ *     ListNode() {}
+ *     ListNode(int val) { this.val = val; }
+ *     ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+ * }
+ */
+class Solution {
+    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
+        var head1 = l1;
+        var head2 = l2;
+
+        int flag = 0;
+
+        var dummy = new ListNode(-1);
+        var tmp = dummy;
+
+        while (head1 != null && head2 != null) {
+            var value = head1.val + head2.val + flag;
+            if (value < 10) {
+                flag = 0;
+            } else {
+                value = value % 10;
+                flag = 1;
+            }
+
+            tmp.next = new ListNode(value);
+            tmp = tmp.next;
+
+            head1 = head1.next;
+            head2 = head2.next;
+        }
+
+        if (head1 != null) {
+            while (head1 != null) {
+                var value = head1.val + flag;
+                if (value < 10) {
+                    flag = 0;
+                } else {
+                    value = value % 10;
+                    flag = 1;
+                }
+
+                tmp.next = new ListNode(value);
+                tmp = tmp.next;
+
+                head1 = head1.next;
+            }
+        }
+
+        if (head2 != null) {
+            while (head2 != null) {
+                var value = head2.val + flag;
+                if (value < 10) {
+                    flag = 0;
+                } else {
+                    value = value % 10;
+                    flag = 1;
+                }
+
+                tmp.next = new ListNode(value);
+                tmp = tmp.next;
+
+                head2 = head2.next;
+            }
+        }
+
+        if (flag == 1) {
+            tmp.next = new ListNode(1);
+        }
+
+
+        return dummy.next;
+    }
+}
+\end{myjava}
+
+以上代码比较容易理解, 但重复代码有点多, 所以简化一下.
+
+\begin{myjava}
+/**
+ * Definition for singly-linked list.
+ * public class ListNode {
+ *     int val;
+ *     ListNode next;
+ *     ListNode() {}
+ *     ListNode(int val) { this.val = val; }
+ *     ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+ * }
+ */
+class Solution {
+    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
+        var head1 = l1;
+        var head2 = l2;
+
+        int flag = 0;
+
+        var dummy = new ListNode(-1);
+        var tmp = dummy;
+
+        while (head1 != null || head2 != null) {
+            int v1 = 0;
+            int v2 = 0;
+            if (head1 != null) v1 = head1.val;
+            if (head2 != null) v2 = head2.val;
+            var value = v1 + v2 + flag;
+            if (value < 10) {
+                flag = 0;
+            } else {
+                value = value % 10;
+                flag = 1;
+            }
+
+            tmp.next = new ListNode(value);
+            tmp = tmp.next;
+
+            if (head1 != null) head1 = head1.next;
+            if (head2 != null) head2 = head2.next;
+        }
+
+        if (flag == 1) {
+            tmp.next = new ListNode(1);
+        }
+
+
+        return dummy.next;
+    }
+}
+\end{myjava}
+
+\chapter{无重复字符的最长子串}
+
+\section{题目}
+
+给定一个字符串s, 请你找出其中不含有重复字符的\textbf{最长子串}的长度.
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: s = "abcabcbb"
+输出: 3 
+解释: 因为无重复字符的最长子串是 "abc", 所以其长度为3.
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: s = "bbbbb"
+输出: 1
+解释: 因为无重复字符的最长子串是 "b", 所以其长度为1.
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: s = "pwwkew"
+输出: 3
+解释: 因为无重复字符的最长子串是"wke", 所以其长度为3.
+     请注意, 你的答案必须是 子串 的长度, "pwke"是一个子序列, 不是子串.
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item $0 <= s.length <= 5 * 10^4$
+    \item s由英文字母, 数字, 符号和空格组成
+\end{itemize}
+
+\section{解法}
+
+\subsection{暴力法}
+
+\begin{myjava}
+class Solution {
+    public int lengthOfLongestSubstring(String s) {
+        // 哈希集合,记录每个字符是否出现过
+        var charSet = new HashSet<Character>();
+        int N = s.length();
+        int maxLength = 0;
+
+        for (int i = 0; i < N; i++) {
+            charSet.add(s.charAt(i));
+            int tmp = 1;
+            for (int j = i + 1; j < N && !charSet.contains(s.charAt(j)); j++) {
+                charSet.add(s.charAt(j));
+                tmp++;
+            }
+            maxLength = Math.max(maxLength, tmp);
+            charSet.clear();
+        }
+
+        return maxLength;
+    }
+}
+\end{myjava}
+
+\subsection{滑动窗口解法}
+
+这道题的解法我们使用滑动窗口, 也可以认为是双指针法.
+
+左指针指向子串的开始位置, 右指针不断的向右移动.
+
+这里的关键点是:
+
+每一轮for循环找出的不重复子串, 是下标 [leftPointer, rightPointer] 之间的元素, 这就是一个\textbf{滑动窗口}.
+
+而下一轮for循环开始时, leftPointer向右移动, rightPointer也必然向右移动. 为什么?
+
+因为\mintinline{java}|[leftPointer, rightPointer]|之间的元素肯定不重复.
+
+那么\mintinline{java}|[leftPointer+1, rightPointer]|之间的元素肯定不重复.
+
+所以\mintinline{java}|rightPointer|直接向右移动即可.
+
+这里需要一个用来去重的集合类型. 左指针向右移动一格, 从集合中删除一个字符. 右指针向右移动一格, 判断当前指向的字符是否在集合中, 如果不在, 则将字符添加到集合中.
+
+\begin{figure}
+    \centering
+    \scalebox{.5}{
+        \begin{tikzpicture}
+            \begin{pgfonlayer}{nodelayer}
+                \node [style=none] (0) at (-6.5, -11.5) {P};
+                \node [style=none] (1) at (-5.5, -11.5) {W};
+                \node [style=none] (2) at (-4.5, -11.5) {W};
+                \node [style=none] (3) at (-3.5, -11.5) {K};
+                \node [style=none] (4) at (-2.5, -11.5) {E};
+                \node [style=none] (5) at (-1.5, -11.5) {W};
+                \node [style=none] (6) at (-6.5, -12.5) {};
+                \node [style=none] (7) at (-5.5, -10.5) {};
+                \node [style=none] (8) at (-6.5, -11.75) {};
+                \node [style=none] (9) at (-5.5, -11.25) {};
+                \node [style=none] (10) at (-6.5, -13) {\tiny{leftPointer}};
+                \node [style=none] (11) at (-5.5, -10.25) {\tiny{rightPointer}};
+                \node [style=none] (12) at (-9.25, -11.25) {\tiny{\textcolor{red}{第1轮for循环结束}}};
+                \node [style=none] (13) at (-9.25, -11.75) {\tiny{字符集合: (P,W)}};
+                \node [style=none] (14) at (-6.5, -15.5) {P};
+                \node [style=none] (15) at (-5.5, -15.5) {W};
+                \node [style=none] (16) at (-4.5, -15.5) {W};
+                \node [style=none] (17) at (-3.5, -15.5) {K};
+                \node [style=none] (18) at (-2.5, -15.5) {E};
+                \node [style=none] (19) at (-1.5, -15.5) {W};
+                \node [style=none] (20) at (-5.5, -16.5) {};
+                \node [style=none] (21) at (-5.5, -14.5) {};
+                \node [style=none] (22) at (-5.5, -15.75) {};
+                \node [style=none] (23) at (-5.5, -15.25) {};
+                \node [style=none] (24) at (-5.5, -17) {\tiny{leftPointer}};
+                \node [style=none] (25) at (-5.5, -14.25) {\tiny{rightPointer}};
+                \node [style=none] (26) at (-9.25, -15.25) {\tiny{\textcolor{red}{第2轮for循环结束}}};
+                \node [style=none] (27) at (-9.25, -15.75) {\tiny{字符集合: (W)}};
+                \node [style=none] (28) at (-6.5, -19.75) {P};
+                \node [style=none] (29) at (-5.5, -19.75) {W};
+                \node [style=none] (30) at (-4.5, -19.75) {W};
+                \node [style=none] (31) at (-3.5, -19.75) {K};
+                \node [style=none] (32) at (-2.5, -19.75) {E};
+                \node [style=none] (33) at (-1.5, -19.75) {W};
+                \node [style=none] (34) at (-4.5, -20.75) {};
+                \node [style=none] (35) at (-2.5, -18.75) {};
+                \node [style=none] (36) at (-4.5, -20) {};
+                \node [style=none] (37) at (-2.5, -19.5) {};
+                \node [style=none] (38) at (-4.5, -21.25) {\tiny{leftPointer}};
+                \node [style=none] (39) at (-2.5, -18.5) {\tiny{rightPointer}};
+                \node [style=none] (40) at (-9.25, -19.5) {\tiny{\textcolor{red}{第3轮for循环结束}}};
+                \node [style=none] (41) at (-9.25, -20) {\tiny{字符集合: (W,K,E)}};
+                \node [style=none] (42) at (4.875, -11.5) {P};
+                \node [style=none] (43) at (5.875, -11.5) {W};
+                \node [style=none] (44) at (6.875, -11.5) {W};
+                \node [style=none] (45) at (7.875, -11.5) {K};
+                \node [style=none] (46) at (8.875, -11.5) {E};
+                \node [style=none] (47) at (9.875, -11.5) {W};
+                \node [style=none] (48) at (7.875, -12.5) {};
+                \node [style=none] (49) at (9.85, -10.5) {};
+                \node [style=none] (50) at (7.875, -11.75) {};
+                \node [style=none] (51) at (9.85, -11.25) {};
+                \node [style=none] (52) at (7.875, -13) {\tiny{leftPointer}};
+                \node [style=none] (53) at (9.85, -10.25) {\tiny{rightPointer}};
+                \node [style=none] (54) at (2.125, -11.25) {\tiny{\textcolor{red}{第4轮for循环结束}}};
+                \node [style=none] (55) at (2.125, -11.75) {\tiny{字符集合: (K,E,W)}};
+                \node [style=none] (56) at (4.875, -15.5) {P};
+                \node [style=none] (57) at (5.875, -15.5) {W};
+                \node [style=none] (58) at (6.875, -15.5) {W};
+                \node [style=none] (59) at (7.875, -15.5) {K};
+                \node [style=none] (60) at (8.875, -15.5) {E};
+                \node [style=none] (61) at (9.875, -15.5) {W};
+                \node [style=none] (62) at (8.875, -16.5) {};
+                \node [style=none] (63) at (9.85, -14.5) {};
+                \node [style=none] (64) at (8.875, -15.75) {};
+                \node [style=none] (65) at (9.85, -15.25) {};
+                \node [style=none] (66) at (8.875, -17) {\tiny{leftPointer}};
+                \node [style=none] (67) at (9.85, -14.25) {\tiny{rightPointer}};
+                \node [style=none] (68) at (2.125, -15.25) {\tiny{\textcolor{red}{第5轮for循环结束}}};
+                \node [style=none] (69) at (2.125, -15.75) {\tiny{字符集合: (E,W)}};
+                \node [style=none] (70) at (4.875, -19.75) {P};
+                \node [style=none] (71) at (5.875, -19.75) {W};
+                \node [style=none] (72) at (6.875, -19.75) {W};
+                \node [style=none] (73) at (7.875, -19.75) {K};
+                \node [style=none] (74) at (8.875, -19.75) {E};
+                \node [style=none] (75) at (9.875, -19.75) {W};
+                \node [style=none] (76) at (9.85, -20.75) {};
+                \node [style=none] (77) at (9.85, -18.75) {};
+                \node [style=none] (78) at (9.85, -20) {};
+                \node [style=none] (79) at (9.85, -19.5) {};
+                \node [style=none] (80) at (9.85, -21.25) {\tiny{leftPointer}};
+                \node [style=none] (81) at (9.85, -18.5) {\tiny{rightPointer}};
+                \node [style=none] (82) at (2.125, -19.5) {\tiny{\textcolor{red}{第6轮for循环结束}}};
+                \node [style=none] (83) at (2.125, -20) {\tiny{字符集合: (W)}};
+                \node [style=none] (84) at (0, -9) {};
+                \node [style=none] (85) at (0, -22) {};
+            \end{pgfonlayer}
+            \begin{pgfonlayer}{edgelayer}
+                \draw [style=diredge] (6.center) to (8.center);
+                \draw [style=diredge] (7.center) to (9.center);
+                \draw [style=diredge] (20.center) to (22.center);
+                \draw [style=diredge] (21.center) to (23.center);
+                \draw [style=diredge] (34.center) to (36.center);
+                \draw [style=diredge] (35.center) to (37.center);
+                \draw [style=diredge] (48.center) to (50.center);
+                \draw [style=diredge] (49.center) to (51.center);
+                \draw [style=diredge] (62.center) to (64.center);
+                \draw [style=diredge] (63.center) to (65.center);
+                \draw [style=diredge] (76.center) to (78.center);
+                \draw [style=diredge] (77.center) to (79.center);
+                \draw (84.center) to (85.center);
+            \end{pgfonlayer}
+        \end{tikzpicture}
+    }
+    \caption{双指针法}
+\end{figure}
+
+
+\begin{myjava}
+class Solution {
+    public int lengthOfLongestSubstring(String s) {
+        // 哈希集合,记录每个字符是否出现过
+        var charSet = new HashSet<Character>();
+        int N = s.length();
+        // 右指针, 初始值为 -1,
+        // 相当于我们在字符串的左边界的左侧,
+        // 还没有开始移动
+        int rightPointer = -1;
+        int maxLength = 0;
+        for (
+            int leftPointer = 0;
+            leftPointer < N;
+            ++leftPointer
+        ) {
+            if (leftPointer != 0) {
+                // 左指针向右移动一格,移除一个字符
+                charSet.remove(s.charAt(leftPointer - 1));
+            }
+            while (rightPointer + 1 < N &&
+                   !charSet.contains(s.charAt(rightPointer + 1))) {
+                // 不断地移动右指针
+                charSet.add(s.charAt(rightPointer + 1));
+                ++rightPointer;
+            }
+            // 第 leftPointer 到 rightPointer 个字符
+            // 是一个极长的无重复字符子串
+            maxLength = Math.max(
+                maxLength,
+                rightPointer - leftPointer + 1
+            );
+        }
+        return maxLength;
+    }
+}
+\end{myjava}
+
+
+\chapter{寻找两个正序数组的中位数}
+
+\section{题目}
+
+给定两个大小分别为m和n的正序(从小到大)数组nums1和nums2. 请你找出并返回这两个正序数组的\textbf{中位数}.
+
+算法的时间复杂度应该为 $O(log(m+n))$.
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: nums1 = [1,3], nums2 = [2]
+输出: 2.00000
+解释: 合并数组 = [1,2,3] , 中位数 2
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: nums1 = [1,2], nums2 = [3,4]
+输出: 2.50000
+解释: 合并数组 = [1,2,3,4], 中位数 (2 + 3) / 2 = 2.5
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item $nums1.length == m$
+    \item $nums2.length == n$
+    \item $0 <= m <= 1000$
+    \item $0 <= n <= 1000$
+    \item $1 <= m + n <= 2000$
+    \item $-10^6 <= nums1[i], nums2[i] <= 10^6$
+\end{itemize}
+
+\section{解法}
+
+\subsection{暴力解法}
+
+将两个数组拼接, 然后排序, 然后找出中位数.
+
+\begin{myjava}
+class Solution {
+    public double findMedianSortedArrays(
+        int[] nums1,
+        int[] nums2
+    ) {
+        int[] nums = new int[nums1.length + nums2.length];
+
+        for (int i = 0; i < nums1.length; i++) {
+            nums[i] = nums1[i];
+        }
+
+        for (int j = 0; j < nums2.length; j++) {
+            nums[nums1.length + j] = nums2[j];
+        }
+
+        Arrays.sort(nums);
+
+        if (nums.length % 2 == 1) {
+            return nums[nums.length / 2];
+        } else {
+            return (nums[nums.length / 2] + nums[nums.length / 2 - 1]) / 2.0;
+        }
+    }
+}
+\end{myjava}
+
+\subsection{二分法}
+
+这道题有一个先验知识, 也就是我们会提前知道两个数组都是排好序的. 而且我们找的是中位数. 所以很自然的会想到能不能使用二分法的思路.
+
+
+
+\chapter{最长回文子串}
+
+\section{题目}
+
+给你一个字符串s, 找到s中最长的回文子串.
+
+如果字符串的反序与原始字符串相同, 则该字符串称为回文字符串.
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: s = "babad"
+输出: "bab"
+解释: "aba" 同样是符合题意的答案.
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: s = "cbbd"
+输出: "bb"
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item 1 <= s.length <= 1000
+    \item s仅由数字和英文字母组成
+\end{itemize}
+
+\section{解法}
+
+\subsection{暴力解法}
+
+\begin{myjava}
+class Solution {
+    public String longestPalindrome(String s) {
+        String palindrome = "";
+        int start = 0;
+        int end = 0;
+
+        for (int i = 0; i < s.length(); i++) {
+            for (int j = i; j < s.length(); j++) {
+                if (validPalindrome(s, i, j) && j - i > end - start) {
+                    start = i;
+                    end = j;
+                }
+            }
+        }
+
+        return s.substring(start, end + 1);
+    }
+
+    public boolean validPalindrome(String s, int i, int j) {
+        while (s.charAt(i) == s.charAt(j)) {
+            if (i == j || i + 1 == j) {
+                return true;
+            } else {
+                i++;
+                j--;
+            }
+        }
+
+        return false;
+    }
+}
+\end{myjava}
+
+\subsection{中心扩展法}
+
+\begin{myjava}
+class Solution {
+    public String longestPalindrome(String s) {
+        if (s == null || s.length() < 1) return "";
+        int start = 0, end = 0;
+        for (int i = 0; i < s.length(); i++) {
+            int len1 = expandAroundCenter(s, i, i);
+            int len2 = expandAroundCenter(s, i, i + 1);
+            int len = Math.max(len1, len2);
+            if (len > end - start) {
+                start = i - (len - 1) / 2;
+                end = i + len / 2;
+            }
+        }
+        return s.substring(start, end + 1);
+    }
+
+    private int expandAroundCenter(String s, int left, int right) {
+        int L = left, R = right;
+        while (L >= 0 && R < s.length() && s.charAt(L) == s.charAt(R)) {
+            L--;
+            R++;
+        }
+        return R - L - 1;
+    }
+}
+\end{myjava}
+
+\chapter{N字形变换}
+
+\section{题目}
+
+将一个给定字符串s根据给定的行数numRows, 以从上往下, 从左到右进行Z字形排列.
+
+比如输入字符串为"PAYPALISHIRING"行数为3时, 排列如下:
+
+\begin{minted}{text}
+P   A   H   N
+A P L S I I G
+Y   I   R
+\end{minted}
+
+之后, 你的输出需要从左往右逐行读取, 产生出一个新的字符串, 比如: "PAHNAPLSIIGYIR".
+
+请你实现这个将字符串进行指定行数变换的函数:
+
+\begin{minted}{text}
+string convert(string s, int numRows);
+\end{minted}
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: s = "PAYPALISHIRING", numRows = 3
+输出: "PAHNAPLSIIGYIR"
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: s = "PAYPALISHIRING", numRows = 4
+输出: "PINALSIGYAHRPI"
+解释:
+P     I    N
+A   L S  I G
+Y A   H R
+P     I
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: s = "A", numRows = 1
+输出: "A"
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item 1 <= s.length <= 1000
+    \item s由英文字母(小写和大写), ','和'.'组成
+    \item 1 <= numRows <= 1000
+\end{itemize}
+
+\chapter{整数反转}
+
+\section{题目}
+
+给你一个32位的有符号整数x, 返回将x中的数字部分反转后的结果.
+
+如果反转后整数超过32位的有符号整数的范围 $[-2^{31},  2^{31} - 1]$, 就返回0.
+
+假设环境不允许存储64位整数(有符号或无符号).
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: x = 123
+输出: 321
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: x = -123
+输出: -321
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: x = 120
+输出: 21
+\end{minted}
+
+\textbf{示例 4}:
+
+\begin{minted}{text}
+输入: x = 0
+输出: 0
+\end{minted}
+
+\textbf{提示}:
+
+$-2^{31} <= x <= 2^{31} - 1$
+
+\chapter{字符串转换整数(atoi)}
+
+\section{题目}
+
+请你来实现一个myAtoi(string s)函数, 使其能将字符串转换成一个32位有符号整数(类似 C/C++ 中的 atoi 函数). 
+
+函数myAtoi(string s)的算法如下: 
+
+\begin{enumerate}
+    \item 读入字符串并丢弃无用的前导空格
+    \item 检查下一个字符(假设还未到字符末尾)为正还是负号, 读取该字符(如果有).  确定最终结果是负数还是正数.  如果两者都不存在, 则假定结果为正. 
+    \item 读入下一个字符, 直到到达下一个非数字字符或到达输入的结尾. 字符串的其余部分将被忽略. 
+    \item 将前面步骤读入的这些数字转换为整数(即, "123" -> 123,  "0032" -> 32). 如果没有读入数字, 则整数为 0 . 必要时更改符号(从步骤 2 开始). 
+    \item 如果整数数超过 32 位有符号整数范围 $[-2^{31},  2^{31} - 1]$ , 需要截断这个整数, 使其保持在这个范围内. 具体来说, 小于 $-2^{31}$ 的整数应该被固定为 $-2^{31}$ , 大于 $2^{31} − 1$ 的整数应该被固定为 $2^{31} − 1$ . 
+    \item 返回整数作为最终结果. 
+\end{enumerate}
+
+注意: 
+
+- 本题中的空白字符只包括空格字符' '. 
+- 除前导空格或数字后的其余字符串外, \textbf{请勿忽略}任何其他字符. 
+
+\textbf{示例 1}: 
+
+\begin{minted}{text}
+输入: s = "42"
+输出: 42
+解释: 加粗的字符串为已经读入的字符, 插入符号是当前读取的字符. 
+第 1 步: "42"(当前没有读入字符, 因为没有前导空格)
+         ^
+第 2 步: "42"(当前没有读入字符, 因为这里不存在 '-' 或者 '+')
+         ^
+第 3 步: "42"(读入 "42")
+           ^
+解析得到整数 42 . 
+由于 "42" 在范围 [-231, 231 - 1] 内, 最终结果为 42 . 
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: s = "   -42"
+输出: -42
+解释: 
+第 1 步: "   -42"(读入前导空格, 但忽视掉)
+            ^
+第 2 步: "   -42"(读入 '-' 字符, 所以结果应该是负数)
+             ^
+第 3 步: "   -42"(读入 "42")
+               ^
+解析得到整数 -42 . 
+由于 "-42" 在范围 [-231, 231 - 1] 内, 最终结果为 -42 . 
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: s = "4193 with words"
+输出: 4193
+解释: 
+第 1 步: "4193 with words"(当前没有读入字符, 因为没有前导空格)
+         ^
+第 2 步: "4193 with words"(当前没有读入字符, 因为这里不存在 '-' 或者 '+')
+         ^
+第 3 步: "4193 with words"(读入 "4193"；由于下一个字符不是一个数字, 所以读入停止)
+             ^
+解析得到整数 4193 . 
+由于 "4193" 在范围 $[-2^{31}, 2^{31} - 1]$ 内, 最终结果为 4193 . 
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item 0 <= s.length <= 200
+    \item s由英文字母(大写和小写), 数字(0-9), ' ', '+', '-'和'.'组成.
+\end{itemize}
+
+\chapter{回文数}
+
+\section{题目}
+
+给你一个整数x, 如果x是一个回文整数, 返回true; 否则, 返回false.
+
+回文数是指正序(从左向右)和倒序(从右向左)读都是一样的整数. 
+
+例如, 121是回文, 而123不是. 
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: x = 121
+输出: true
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: x = -121
+输出: false
+解释: 从左向右读, 为 -121 .  从右向左读, 为 121- . 因此它不是一个回文数. 
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: x = 10
+输出: false
+解释: 从右向左读, 为 01 . 因此它不是一个回文数. 
+\end{minted}
+
+\textbf{提示}: 
+
+$-2^{31} <= x <= 2^{31} - 1$
+
+\section{解法}
+
+\subsection{暴力解法}
+
+\begin{myjava}
+class Solution {
+    public boolean isPalindrome(int x) {
+        if (x < 0) return false;
+
+        var s = Integer.toString(x);
+
+        for (int i = 0; i < s.length() / 2; i++) {
+            if (s.charAt(i) != s.charAt(s.length() - 1 - i)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+\end{myjava}
+
+\subsection{反转整个数字}
+
+\begin{myjava}
+class Solution {
+    public boolean isPalindrome(int x) {
+        int cache = x;
+        if (x < 0 || (x % 10 == 0 && x != 0)) return false;
+
+        int reversedNumber = 0;
+
+        while (x != 0) {
+            reversedNumber = reversedNumber * 10 + x % 10;
+            x = x / 10;
+        }
+
+        return cache == reversedNumber;
+    }
+}
+\end{myjava}
+
+\subsection{反转一半数字}
+
+\begin{myjava}
+class Solution {
+    public boolean isPalindrome(int x) {
+        // 特殊情况:
+        // 如上所述, 当 x < 0 时, x 不是回文数. 
+        // 同样地, 如果数字的最后一位是 0, 为了使该数字为回文,
+        // 则其第一位数字也应该是 0
+        // 只有 0 满足这一属性
+        if (x < 0 || (x % 10 == 0 && x != 0)) {
+            return false;
+        }
+
+        int revertedNumber = 0;
+        while (x > revertedNumber) {
+            revertedNumber = revertedNumber * 10 + x % 10;
+            x /= 10;
+        }
+
+        // 当数字长度为奇数时, 我们可以通过 revertedNumber/10 去除处于中位的数字. 
+        // 例如, 当输入为 12321 时, 在 while 循环的末尾我们可以得到 x = 12, revertedNumber = 123,
+        // 由于处于中位的数字不影响回文（它总是与自己相等）, 所以我们可以简单地将其去除. 
+        return x == revertedNumber || x == revertedNumber / 10;
+    }
+}
+\end{myjava}
+
+\chapter{正则表达式匹配}
+
+\section{题目}
+
+给你一个字符串s和一个字符规律p, 请你来实现一个支持'.'和'*'的正则表达式匹配.
+
+\begin{itemize}
+    \item '.'匹配任意单个字符
+    \item '*'匹配零个或多个前面的那一个元素
+\end{itemize}
+
+所谓匹配, 是要涵盖 \textbf{整个} 字符串s的, 而不是部分字符串.
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: s = "aa", p = "a"
+输出: false
+解释: "a" 无法匹配 "aa" 整个字符串. 
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: s = "aa", p = "a*"
+输出: true
+解释: 因为 '*' 代表可以匹配零个或多个前面的那一个元素, 在这里前面的元素就是 'a'. 因此, 字符串 "aa" 可被视为 'a' 重复了一次. 
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: s = "ab", p = ".*"
+输出: true
+解释: ".*" 表示可匹配零个或多个('*')任意字符('.').
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item 1 <= s.length <= 20
+    \item 1 <= p.length <= 30
+    \item s 只包含从 a-z 的小写字母. 
+    \item p 只包含从 a-z 的小写字母, 以及字符 . 和 *.
+    \item 保证每次出现字符 * 时, 前面都匹配到有效的字符
+\end{itemize}
+
+\chapter{盛最多水的容器}
+
+\section{题目}
+
+给定一个长度为n的整数数组height. 有n条垂线, 第i条线的两个端点是 $(i, 0)$ 和 $(i, height[i])$.
+
+找出其中的两条线, 使得它们与x轴共同构成的容器可以容纳最多的水. 
+
+返回容器可以储存的最大水量. 
+
+说明: 你不能倾斜容器.
+
+\textbf{示例 1}:
+
+
+
+\tikzset{every picture/.style={line width=0.75pt}} %set default line width to 0.75pt        
+
+\begin{tikzpicture}[x=0.75pt,y=0.75pt,yscale=-1,xscale=1]
+%uncomment if require: \path (0,493); %set diagram left start at 0, and has height of 493
+
+%Shape: Rectangle [id:dp5760559928887128] 
+\draw  [color={rgb, 255:red, 255; green, 255; blue, 255 }  ,draw opacity=1 ][fill={rgb, 255:red, 80; green, 227; blue, 194 }  ,fill opacity=1 ] (255.39,154.49) -- (471.44,154.49) -- (471.44,372.56) -- (255.39,372.56) -- cycle ;
+%Straight Lines [id:da31862390699005805] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,154.35) -- (471.1,154.49) ;
+%Straight Lines [id:da5078706226425602] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,184.07) -- (471.1,184.21) ;
+%Straight Lines [id:da5222152707190693] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,214.14) -- (471.1,214.27) ;
+%Straight Lines [id:da30285503879308573] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,243.86) -- (471.1,243.99) ;
+%Straight Lines [id:da9617349589651611] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,278.76) -- (471.1,278.9) ;
+%Straight Lines [id:da679421403869912] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,308.48) -- (471.1,308.62) ;
+%Straight Lines [id:da2995395769617162] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,338.55) -- (471.1,338.69) ;
+%Straight Lines [id:da8894983543840824] 
+\draw    (225,370.69) -- (471.1,370.83) ;
+%Straight Lines [id:da10574864440875942] 
+\draw    (225,340.28) -- (225,370.69) ;
+%Straight Lines [id:da37783419593559375] 
+\draw [color={rgb, 255:red, 208; green, 2; blue, 27 }  ,draw opacity=1 ]   (255.04,122) -- (255.39,369.45) ;
+%Straight Lines [id:da989378818202052] 
+\draw    (284.88,183.52) -- (285.57,371.17) ;
+%Straight Lines [id:da39394916133142965] 
+\draw    (316.77,311.73) -- (317.8,370.14) ;
+%Straight Lines [id:da6068596603021184] 
+\draw    (348.05,214.2) -- (347.3,371.17) ;
+%Straight Lines [id:da6394686901870212] 
+\draw    (378.85,247.1) -- (379.88,370.14) ;
+%Straight Lines [id:da24966226193284569] 
+\draw    (409.37,122) -- (409.71,369.45) ;
+%Straight Lines [id:da46664639659226337] 
+\draw    (440.58,279.59) -- (440.58,369.45) ;
+%Straight Lines [id:da8509169306753077] 
+\draw [color={rgb, 255:red, 126; green, 211; blue, 33 }  ,draw opacity=1 ]   (471.1,154.49) -- (471.1,370.83) ;
+%Straight Lines [id:da47219768452498667] 
+\draw    (199,371.33) -- (510.33,371.33) ;
+\draw [shift={(512.33,371.33)}, rotate = 180] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+%Straight Lines [id:da7398403496399695] 
+\draw    (199,371.33) -- (197.68,102) ;
+\draw [shift={(197.67,100)}, rotate = 89.72] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+%Straight Lines [id:da5699068787730066] 
+\draw    (197.33,154.33) -- (207,154.17) ;
+%Straight Lines [id:da21337254686747498] 
+\draw    (198,183.67) -- (207.67,183.5) ;
+%Straight Lines [id:da4808785258156989] 
+\draw    (198,214) -- (207.67,213.83) ;
+%Straight Lines [id:da5232528333460487] 
+\draw    (197.93,244.33) -- (207.6,244.17) ;
+%Straight Lines [id:da6760501612453669] 
+\draw    (198.73,279.13) -- (208.4,278.97) ;
+%Straight Lines [id:da6400997409313358] 
+\draw    (199.13,309.13) -- (208.8,308.97) ;
+%Straight Lines [id:da5273067814783394] 
+\draw    (198.93,339.33) -- (208.6,339.17) ;
+%Straight Lines [id:da00464593592358975] 
+\draw    (198.33,123.93) -- (208,123.77) ;
+
+% Text Node
+\draw (182.4,331.8) node [anchor=north west][inner sep=0.75pt]   [align=left] {1};
+% Text Node
+\draw (182.4,299.8) node [anchor=north west][inner sep=0.75pt]   [align=left] {2};
+% Text Node
+\draw (182.4,270.2) node [anchor=north west][inner sep=0.75pt]   [align=left] {3};
+% Text Node
+\draw (182.4,235.4) node [anchor=north west][inner sep=0.75pt]   [align=left] {4};
+% Text Node
+\draw (182.4,207.4) node [anchor=north west][inner sep=0.75pt]   [align=left] {5};
+% Text Node
+\draw (182.4,175) node [anchor=north west][inner sep=0.75pt]   [align=left] {6};
+% Text Node
+\draw (182.4,145) node [anchor=north west][inner sep=0.75pt]   [align=left] {7};
+% Text Node
+\draw (182.4,117.8) node [anchor=north west][inner sep=0.75pt]   [align=left] {8};
+
+
+\end{tikzpicture}
+
+\begin{minted}{text}
+输入: [1,8,6,2,5,4,8,3,7]
+输出: 49 
+解释: 图中垂直线代表输入数组 [1,8,6,2,5,4,8,3,7]. 在此情况下, 容器能够容纳水(表示为蓝色部分)的最大值为 49. 
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: height = [1,1]
+输出: 1
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item n == height.length
+    \item $2 <= n <= 10^5$
+    \item $0 <= height[i] <= 10^4$
+\end{itemize}
+
+\tikzset{every picture/.style={line width=0.75pt}} %set default line width to 0.75pt        
+
+\begin{tikzpicture}[x=0.75pt,y=0.75pt,yscale=-1,xscale=1]
+%uncomment if require: \path (0,493); %set diagram left start at 0, and has height of 493
+
+%Shape: Rectangle [id:dp5760559928887128] 
+\draw  [color={rgb, 255:red, 255; green, 255; blue, 255 }  ,draw opacity=1 ][fill={rgb, 255:red, 80; green, 227; blue, 194 }  ,fill opacity=1 ] (255.39,154.49) -- (471.44,154.49) -- (471.44,372.56) -- (255.39,372.56) -- cycle ;
+%Straight Lines [id:da31862390699005805] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,154.35) -- (471.1,154.49) ;
+%Straight Lines [id:da5078706226425602] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,184.07) -- (471.1,184.21) ;
+%Straight Lines [id:da5222152707190693] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,214.14) -- (471.1,214.27) ;
+%Straight Lines [id:da30285503879308573] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,243.86) -- (471.1,243.99) ;
+%Straight Lines [id:da9617349589651611] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,278.76) -- (471.1,278.9) ;
+%Straight Lines [id:da679421403869912] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,308.48) -- (471.1,308.62) ;
+%Straight Lines [id:da2995395769617162] 
+\draw [color={rgb, 255:red, 74; green, 144; blue, 226 }  ,draw opacity=1 ] [dash pattern={on 0.84pt off 2.51pt}]  (225,338.55) -- (471.1,338.69) ;
+%Straight Lines [id:da8894983543840824] 
+\draw    (225,370.69) -- (471.1,370.83) ;
+%Straight Lines [id:da10574864440875942] 
+\draw    (225,340.28) -- (225,370.69) ;
+%Straight Lines [id:da37783419593559375] 
+\draw [color={rgb, 255:red, 208; green, 2; blue, 27 }  ,draw opacity=1 ]   (255.04,122) -- (255.39,369.45) ;
+%Straight Lines [id:da989378818202052] 
+\draw    (284.88,183.52) -- (285.57,371.17) ;
+%Straight Lines [id:da39394916133142965] 
+\draw    (316.77,311.73) -- (317.8,370.14) ;
+%Straight Lines [id:da6068596603021184] 
+\draw    (348.05,214.2) -- (347.3,371.17) ;
+%Straight Lines [id:da6394686901870212] 
+\draw    (378.85,247.1) -- (379.88,370.14) ;
+%Straight Lines [id:da24966226193284569] 
+\draw    (409.37,122) -- (409.71,369.45) ;
+%Straight Lines [id:da46664639659226337] 
+\draw    (440.58,279.59) -- (440.58,369.45) ;
+%Straight Lines [id:da8509169306753077] 
+\draw [color={rgb, 255:red, 126; green, 211; blue, 33 }  ,draw opacity=1 ]   (471.1,154.49) -- (471.1,370.83) ;
+
+% Text Node
+\draw (349.66,407.27) node   [align=left] {\begin{minipage}[lt]{166.3pt}\setlength\topsep{0pt}
+面积公式\\$\displaystyle S( i,j) \ =\min( h[ i] ,\ h[ j]) \ \times ( j\ -\ i) \ $
+\end{minipage}};
+% Text Node
+\draw (271.6,100.2) node   [align=left] {\begin{minipage}[lt]{68pt}\setlength\topsep{0pt}
+板高\\$\displaystyle h[ i] \ =\ 8$
+\end{minipage}};
+% Text Node
+\draw (505.07,129.27) node   [align=left] {\begin{minipage}[lt]{68pt}\setlength\topsep{0pt}
+板高\\$\displaystyle h[ j] \ =\ 7$
+\end{minipage}};
+
+
+\end{tikzpicture}
+
+\section{解法}
+
+\subsection{暴力法}
+
+\begin{myjava}
+class Solution {
+    public int maxArea(int[] height) {
+        int maxCapacity = 0;
+
+        for (int i = 0; i < height.length; i++) {
+            for (int j = i + 1; j < height.length; j++) {
+                int area = (j - i) * Math.min(height[j], height[i]);
+                if (area > maxCapacity) {
+                    maxCapacity = area;
+                }
+            }
+        }
+
+        return maxCapacity;
+    }
+}
+\end{myjava}
+
+这种解法正确, 但会超时.
+
+\subsection{双指针法}
+
+\begin{myjava}
+class Solution {
+    public int maxArea(int[] height) {
+        int maxCapacity = 0;
+
+        int leftPointer = 0;
+        int rightPointer = height.length - 1;
+
+        while (leftPointer < rightPointer) {
+            int area = Math.min(height[leftPointer], height[rightPointer]) * (rightPointer - leftPointer);
+            maxCapacity = Math.max(maxCapacity, area);
+
+            // 如果左指针指向的高度小于等于右指针指向的高度,
+            // 那么右指针没必要移动, 只需要左指针向右移动寻找更高的高度即可.
+            // 
+            // 如果左指针指向的高度大于右指针指向的高度,
+            // 那么左指针没必要移动, 只需要右指针向左移动寻找更高的高度即可.
+            if (height[leftPointer] <= height[rightPointer]) {
+                leftPointer++;
+            } else {
+                rightPointer--;
+            }
+        }
+
+        return maxCapacity;
+    }
+}
+\end{myjava}
+
+\chapter{整数转罗马数字}
+
+\section{题目}
+
+罗马数字包含以下七种字符: I, V, X, L, C, D 和 M. 
+
+\begin{minted}{text}
+字符          数值
+I             1
+V             5
+X             10
+L             50
+C             100
+D             500
+M             1000
+\end{minted}
+
+例如, 罗马数字2写做II, 即为两个并列的1. 12写做XII, 即为X + II. 27写做XXVII, 即为XX + V + II.
+
+通常情况下, 罗马数字中小的数字在大的数字的右边. 但也存在特例, 例如 4 不写做 IIII, 而是IV. 数字 1 在数字 5 的左边, 所表示的数等于大数 5 减小数 1 得到的数值 4 . 同样地, 数字 9 表示为 `IX`. 这个特殊的规则只适用于以下六种情况: 
+
+\begin{itemize}
+    \item I可以放在V(5) 和 X (10) 的左边, 来表示 4 和 9. 
+    \item X可以放在L(50) 和 C (100) 的左边, 来表示 40 和 90.  
+    \item C可以放在D(500) 和 M (1000) 的左边, 来表示 400 和 900. 
+\end{itemize}
+
+给你一个整数, 将其转为罗马数字. 
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: num = 3
+输出: "III"
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: num = 4
+输出: "IV"
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: num = 9
+输出: "IX"
+\end{minted}
+
+\textbf{示例 4}:
+
+\begin{minted}{text}
+输入: num = 58
+输出: "LVIII"
+解释: L = 50, V = 5, III = 3.
+\end{minted}
+
+\textbf{示例 5}:
+
+\begin{minted}{text}
+输入: num = 1994
+输出: "MCMXCIV"
+解释: M = 1000, CM = 900, XC = 90, IV = 4.
+\end{minted}
+
+\textbf{提示}:
+
+1 <= num <= 3999
+
+\chapter{罗马数字转整数}
+
+\section{题目}
+
+罗马数字包含以下七种字符: I, V, X, L, C, D 和 M.
+
+\begin{minted}{text}
+字符          数值
+I             1
+V             5
+X             10
+L             50
+C             100
+D             500
+M             1000
+\end{minted}
+
+例如, 罗马数字2写做II, 即为两个并列的1. 12写做XII, 即为X + II. 27写做XXVII, 即为XX + V + II.
+
+通常情况下, 罗马数字中小的数字在大的数字的右边. 但也存在特例, 例如 4 不写做 IIII, 而是 IV. 数字 1 在数字 5 的左边, 所表示的数等于大数 5 减小数 1 得到的数值 4 . 同样地, 数字 9 表示为IX. 这个特殊的规则只适用于以下六种情况:
+
+\begin{itemize}
+    \item I可以放在V(5)和X(10)的左边, 来表示4和9.
+    \item X可以放在L(50)和C(100)的左边, 来表示40和90.
+    \item C可以放在D(500)和M(1000)的左边, 来表示400和900.
+\end{itemize}
+
+给定一个罗马数字, 将其转换成整数. 
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: s = "III"
+输出: 3
+\end{minted}
+
+\textbf{示例 2}:
+
+\begin{minted}{text}
+输入: s = "IV"
+输出: 4
+\end{minted}
+
+\textbf{示例 3}:
+
+\begin{minted}{text}
+输入: s = "IX"
+输出: 9
+\end{minted}
+
+\textbf{示例 4}:
+
+\begin{minted}{text}
+输入: s = "LVIII"
+输出: 58
+解释: L = 50, V= 5, III = 3.
+\end{minted}
+
+\textbf{示例 5}:
+
+\begin{minted}{text}
+输入: s = "MCMXCIV"
+输出: 1994
+解释: M = 1000, CM = 900, XC = 90, IV = 4.
+\end{minted}
+
+\textbf{提示}:
+
+\begin{itemize}
+    \item `1 <= s.length <= 15`
+    \item `s` 仅含字符 (`'I'`, `'V'`, `'X'`, `'L'`, `'C'`, `'D'`, `'M'`)
+    \item 题目数据保证 `s` 是一个有效的罗马数字, 且表示整数在范围 `[1, 3999]` 内
+    \item 题目所给测试用例皆符合罗马数字书写规则, 不会出现跨位等情况. 
+    \item `IL` 和 `IM` 这样的例子并不符合题目要求, 49 应该写作 `XLIX`, 999 应该写作 `CMXCIX` . 
+\end{itemize}
+
+\chapter{最长公共前缀}
+
+\section{题目}
+
+编写一个函数来查找字符串数组中的最长公共前缀.
+
+如果不存在公共前缀, 返回空字符串"".
+
+\textbf{示例 1}: 
+
+\begin{minted}{text}
+输入: strs = ["flower","flow","flight"]
+输出: "fl"
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: strs = ["dog","racecar","car"]
+输出: ""
+解释: 输入不存在公共前缀. 
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item 1 <= strs.length <= 200
+    \item 0 <= strs[i].length <= 200
+    \item strs[i]仅由小写英文字母组成
+\end{itemize}
+
+\section{解法}
+
+\subsection{横向扫描法}
+
+\subsection{纵向扫描法}
+
+\begin{myjava}
+class Solution {
+    public String longestCommonPrefix(String[] strs) {
+        if (strs.length == 1) return strs[0];
+
+        int minLength = Integer.MAX_VALUE;
+        for (var s : strs) {
+            if (s.length() < minLength) minLength = s.length();
+        }
+
+        int i = 0;
+        while (i < minLength) {
+            char c = strs[0].charAt(i);
+            for (var s : strs) {
+                if (s.charAt(i) != c) return strs[0].substring(0, i);
+            }
+            i++;
+        }
+
+        return strs[0].substring(0, i);
+    }
+}
+\end{myjava}
+
+\chapter{三数之和}
+
+\section{题目}
+
+给你一个整数数组 $nums$, 判断是否存在三元组
+
+$$
+[nums[i], nums[j], nums[k]]
+$$
+
+满足 $i \ne j$, $i \ne k$ 且 $j \ne k$, 同时还满足 $nums[i] + nums[j] + nums[k] \equiv 0$. 请你返回所有和为0且不重复的三元组.
+
+注意: 答案中不可以包含重复的三元组.
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: nums = [-1,0,1,2,-1,-4]
+输出: [[-1,-1,2],[-1,0,1]]
+解释: 
+nums[0] + nums[1] + nums[2] = (-1) + 0 + 1 = 0.
+nums[1] + nums[2] + nums[4] = 0 + 1 + (-1) = 0.
+nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0.
+不同的三元组是 [-1,0,1] 和 [-1,-1,2].
+注意, 输出的顺序和三元组的顺序并不重要.
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: nums = [0,1,1]
+输出: []
+解释: 唯一可能的三元组和不为 0.
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: nums = [0,0,0]
+输出: [[0,0,0]]
+解释: 唯一可能的三元组和为 0.
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item 3 <= nums.length <= 3000
+    \item $-10^5 <= nums[i] <= 10^5$
+\end{itemize}
+
+\chapter{最接近的三数之和}
+
+\section{题目}
+
+给你一个长度为n的整数数组nums和\textbf{一个目标值}target. 请你从nums中选出三个整数, 使它们的和与target最接近.
+
+返回这三个数的和.
+
+假定每组输入只存在恰好一个解.
+
+\textbf{示例 1}: 
+
+\begin{minted}{text}
+输入: nums = [-1,2,1,-4], target = 1
+输出: 2
+解释: 与 target 最接近的和是 2 (-1 + 2 + 1 = 2) . 
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: nums = [0,0,0], target = 1
+输出: 0
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item 3 <= nums.length <= 1000
+    \item -1000 <= nums[i] <= 1000
+    \item $-10^4 <= target <= 10^4$
+\end{itemize}
+
+\chapter{电话号码的字母组合}
+
+\section{题目}
+
+给定一个仅包含数字2-9的字符串, 返回所有它能表示的字母组合. 答案可以按\textbf{任意顺序}返回.
+
+给出数字到字母的映射如下(与电话按键相同). 注意1不对应任何字母.
+
+\textbf{示例 1}: 
+
+\begin{minted}{text}
+输入: digits = "23"
+输出: ["ad","ae","af","bd","be","bf","cd","ce","cf"]
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: digits = ""
+输出: []
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: digits = "2"
+输出: ["a","b","c"]
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item 0 <= digits.length <= 4
+    \item digits[i]是范围['2', '9']的一个数字. 
+\end{itemize}
+
+\chapter{四数之和}
+
+\section{题目}
+
+给你一个由n个整数组成的数组nums, 和一个目标值target.
+
+请你找出并返回满足下述全部条件且不重复的四元组
+
+$$
+[nums[a], nums[b], nums[c], nums[d]]
+$$
+
+若两个四元组元素一一对应, 则认为两个四元组重复.
+
+\begin{itemize}
+    \item 0 <= a, b, c, d < n
+    \item a, b, c和d互不相同
+    \item $nums[a] + nums[b] + nums[c] + nums[d] == target$
+\end{itemize}
+
+你可以按\textbf{任意顺序}返回答案.
+
+\textbf{示例 1}: 
+
+\begin{minted}{text}
+输入: nums = [1,0,-1,0,-2,2], target = 0
+输出: [[-2,-1,1,2],[-2,0,0,2],[-1,0,0,1]]
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: nums = [2,2,2,2,2], target = 8
+输出: [[2,2,2,2]]
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item $1 <= nums.length <= 200$
+    \item $-10^9 <= nums[i] <= 10^9$
+    \item $-10^9 <= target <= 10^9$
+\end{itemize}
+
+\chapter{删除链表的倒数第N个结点}
+
+\section{题目}
+
+给你一个链表, 删除链表的倒数第n个结点, 并且返回链表的头结点.
+
+\textbf{示例 1}: 
+
+\begin{minted}{text}
+输入: head = [1,2,3,4,5], n = 2
+输出: [1,2,3,5]
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: head = [1], n = 1
+输出: []
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: head = [1,2], n = 1
+输出: [1]
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item 链表中结点的数目为sz
+    \item $1 <= sz <= 30$
+    \item $0 <= Node.val <= 100$
+    \item $1 <= n <= sz$
+\end{itemize}
+
+\textbf{进阶}: 你能尝试使用一趟扫描实现吗?
+
+\section{解法}
+
+\subsection{暴力法}
+
+\begin{myjava}
+/**
+ * Definition for singly-linked list.
+ * public class ListNode {
+ *     int val;
+ *     ListNode next;
+ *     ListNode() {}
+ *     ListNode(int val) { this.val = val; }
+ *     ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+ * }
+ */
+class Solution {
+    public ListNode removeNthFromEnd(ListNode head, int n) {
+        // 加一个头节点
+        var dummy = new ListNode(-1, head);
+
+        var tmp = dummy;
+        int length = 0;
+        while (tmp != null) {
+            length++;
+            tmp = tmp.next;
+        }
+
+        tmp = dummy;
+
+        for (int i = 0; i < length - n - 1; i++) {
+            tmp = tmp.next;
+        }
+
+        tmp.next = tmp.next.next;
+
+        return dummy.next;
+    }
+}
+\end{myjava}
+
+\subsection{一次遍历}
+
+\chapter{有效的括号}
+
+\section{题目}
+
+给定一个只包括'(', ')', '{', '}', '[', ']'的字符串s, 判断字符串是否有效.
+
+有效字符串需满足:
+
+\begin{itemize}
+    \item 左括号必须用相同类型的右括号闭合.
+    \item 左括号必须以正确的顺序闭合.
+    \item 每个右括号都有一个对应的相同类型的左括号.
+\end{itemize}
+
+\textbf{示例 1}:
+
+\begin{minted}{text}
+输入: s = "()"
+输出: true
+\end{minted}
+
+\textbf{示例 2}: 
+
+\begin{minted}{text}
+输入: s = "()[]{}"
+输出: true
+\end{minted}
+
+\textbf{示例 3}: 
+
+\begin{minted}{text}
+输入: s = "(]"
+输出: false
+\end{minted}
+
+\textbf{提示}: 
+
+\begin{itemize}
+    \item 1 <= s.length <= 104
+    \item s 仅由括号 \mintinline{text}|'()[]{}'| 组成
+\end{itemize}
